@@ -36,7 +36,7 @@ const ROOM_CONFIG = {
     rows: 2,
     spawnsPerZone: 1      // 2-3 spawns por zona
   },
-  spawnInterval: 4000,    // Generar spawns cada 4 segundos
+  spawnInterval: 6000,    // Generar spawns cada 6 segundos
   despawnTime: 25000,     // Spawns duran 25 segundos
   maxSimultaneousSpawns: 6, // Total máximo en toda la sala
   minSpawnsActive: 3      // Mínimo de spawns activos siempre
@@ -53,7 +53,7 @@ const SPAWN_TYPES = {
   common: {
     images: ['common/IQU.png'],
     points: 10,
-    probability: 0.7,
+    probability: 0.5,
     despawnTime: 25000,
     captureRange: 2.2,
     color: '#00ff88'

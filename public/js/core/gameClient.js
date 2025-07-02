@@ -662,7 +662,7 @@ export class GameClient {
         
         // distribución más amplia alrededor del jugador
         const angle = Math.random() * 2 * Math.PI;
-        const distance = 2.0 + Math.random() * 2.5; // Entre 2.0-4.5 metros
+        const distance = 4.0 + Math.random() * 2.0; // Entre 4.0-6.0 metros
         
         // algunos objetos más lejos para mayor variedad
         const isDistantObject = Math.random() < 0.3; // 30% de objetos distantes

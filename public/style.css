@@ -994,3 +994,20 @@ button[onclick*="localStorage.clear"] {
     0%, 100% { box-shadow: 0 0 15px rgba(255, 149, 0, 0.3); }
     50% { box-shadow: 0 0 25px rgba(255, 149, 0, 0.6); }
 }
+
+
+.ar-spawn img {
+    width: 45px;
+    height: 45px;
+    object-fit: contain;
+    pointer-events: none;
+    border-radius: 8px;
+}
+
+/* Responsive para móviles */
+@media (max-width: 480px) {
+    .ar-spawn img {
+        width: 35px;
+        height: 35px;
+    }
+}

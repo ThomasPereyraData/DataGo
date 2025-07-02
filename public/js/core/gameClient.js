@@ -662,7 +662,7 @@ export class GameClient {
         
         // distribución más amplia alrededor del jugador
         const angle = Math.random() * 2 * Math.PI;
-        const distance = 0.8 + Math.random() * 3.0; // Entre 0.8-3.8 metros
+        const distance = 2.0 + Math.random() * 2.5; // Entre 2.0-4.5 metros
         
         // algunos objetos más lejos para mayor variedad
         const isDistantObject = Math.random() < 0.3; // 30% de objetos distantes
@@ -1093,7 +1093,14 @@ export class GameClient {
         const arElement = document.createElement('div');
         arElement.className = 'ar-spawn fov-entering';
         arElement.id = `spawn-${spawn.id}`;
-        arElement.textContent = spawn.emoji;
+        const img = document.createElement('img');
+        img.src = `/images/${spawn.image}`;
+        img.alt = spawn.type;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'contain';
+
+        arElement.appendChild(img);
         arElement.title = `${spawn.type} - ${spawn.points} puntos`;
         
         //  Usar posición calculada por FOV

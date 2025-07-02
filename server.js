@@ -34,24 +34,24 @@ const ROOM_CONFIG = {
   zones: {
     cols: 2,              // Dividir en 2x2 = 4 zonas
     rows: 2,
-    spawnsPerZone: 2      // 2-3 spawns por zona
+    spawnsPerZone: 1      // 2-3 spawns por zona
   },
   spawnInterval: 4000,    // Generar spawns cada 4 segundos
   despawnTime: 25000,     // Spawns duran 25 segundos
-  maxSimultaneousSpawns: 12, // Total máximo en toda la sala
-  minSpawnsActive: 6      // Mínimo de spawns activos siempre
+  maxSimultaneousSpawns: 6, // Total máximo en toda la sala
+  minSpawnsActive: 3      // Mínimo de spawns activos siempre
 };
 
 const PROXIMITY_CONFIG = {
-  discoveryRange: 4.0,
-  hideRange: 5.5,
+  discoveryRange: 3.0,
+  hideRange: 4.0,
   updateInterval: 1500
 };
 
 // Tipos de objetos
 const SPAWN_TYPES = {
   common: {
-    emoji: ['🎁', '⭐', '💎'],
+    images: ['common/IQU.png'],
     points: 10,
     probability: 0.7,
     despawnTime: 25000,
@@ -59,7 +59,7 @@ const SPAWN_TYPES = {
     color: '#00ff88'
   },
   rare: {
-    emoji: ['🏆', '👑', '💰'],
+    images: ['rare/Bob.png'],
     points: 25,
     probability: 0.25,
     despawnTime: 20000,
@@ -67,7 +67,7 @@ const SPAWN_TYPES = {
     color: '#ffd700'
   },
   epic: {
-    emoji: ['🔥', '⚡', '🌟'],
+    images: ['epic/Dora.png'],
     points: 50,
     probability: 0.05,
     captureRange: 1.8,
@@ -243,37 +243,38 @@ function generateRoomSpawns() {
 function createSpawnInZone(zoneId) {
   const spawnType = determineSpawnType();
   const spawnConfig = SPAWN_TYPES[spawnType];
-  const position = generatePositionInZone(zoneId);
   
-  // Verificar que no esté muy cerca de otros spawns
-  const tooClose = gameState.spawns.some(existingSpawn => 
-    calculateDistance(position, existingSpawn.position) < 1.0
-  );
+  // Intentar hasta 5 veces encontrar posición libre
+  let position;
+  let attempts = 0;
+  const maxAttempts = 5;
+  const minDistance = 1.8; // Aumentado de 1.0 a 1.8 metros
   
-  if (tooClose) {
-    console.log(`⚠️ Posición muy cerca de otro spawn en zona ${zoneId}, reintentando...`);
-    // Reintentar con nueva posición
-    const newPosition = generatePositionInZone(zoneId);
-    const stillTooClose = gameState.spawns.some(existingSpawn => 
-      calculateDistance(newPosition, existingSpawn.position) < 1.0
+  do {
+    position = generatePositionInZone(zoneId);
+    const tooClose = gameState.spawns.some(existingSpawn => 
+      calculateDistance(position, existingSpawn.position) < minDistance
     );
     
-    if (stillTooClose) {
-      console.log(`⚠️ No se pudo encontrar posición libre en zona ${zoneId}`);
-      return null;
-    }
+    if (!tooClose) break;
     
-    position.x = newPosition.x;
-    position.y = newPosition.y;
+    attempts++;
+    console.log(`⚠️ Intento ${attempts}: Posición muy cerca en zona ${zoneId}`);
+    
+  } while (attempts < maxAttempts);
+  
+  if (attempts >= maxAttempts) {
+    console.log(`⚠️ No se pudo encontrar posición libre en zona ${zoneId} después de ${maxAttempts} intentos`);
+    return null;
   }
   
   return {
     id: gameState.nextSpawnId++,
     type: spawnType,
     position: position,
-    zone: zoneId,  // 🆕 Guardar zona
+    zone: zoneId,
     createdAt: Date.now(),
-    emoji: spawnConfig.emoji[Math.floor(Math.random() * spawnConfig.emoji.length)],
+    image: spawnConfig.images[Math.floor(Math.random() * spawnConfig.images.length)],
     points: spawnConfig.points,
     captureRange: spawnConfig.captureRange,
     despawnTime: spawnConfig.despawnTime,

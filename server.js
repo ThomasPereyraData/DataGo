@@ -51,7 +51,7 @@ const PROXIMITY_CONFIG = {
 // Tipos de objetos
 const SPAWN_TYPES = {
   common: {
-    images: ['common/IQU.png'],
+    images: ['common/IQU.png', 'common/LogoData.png'],
     points: 10,
     probability: 0.5,
     despawnTime: 25000,

@@ -119,23 +119,4 @@ export class Utils {
     static wait(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
-
-    /**
-     * Log mejorado con timestamps y colores
-     */
-    static log(message, type = 'info') {
-        const timestamp = new Date().toLocaleTimeString();
-        const colors = {
-            info: '#007AFF',
-            success: '#00C851',
-            warning: '#FF8800',
-            error: '#FF4444',
-            debug: '#9C27B0'
-        };
-
-        console.log(
-            `%c[${timestamp}] ${message}`,
-            `color: ${colors[type] || colors.info}; font-weight: bold;`
-        );
-    }
 }

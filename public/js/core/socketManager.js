@@ -21,9 +21,7 @@ export class SocketManager {
      * Inicializar conexión Socket.IO
      */
     initialize() {
-        try {
-            Utils.log('Inicializando conexión Socket.IO...', 'info');
-            
+        try {            
             this.socket = io({
                 autoConnect: true,
                 timeout: 10000,
@@ -35,7 +33,6 @@ export class SocketManager {
             this.setupDefaultEventHandlers();
             
         } catch (error) {
-            Utils.log('Error inicializando Socket.IO: ' + error.message, 'error');
             this.messageManager?.error('Error de conexión al servidor');
         }
     }
@@ -49,7 +46,6 @@ export class SocketManager {
             this.isConnected = true;
             this.reconnectAttempts = 0;
             
-            Utils.log('Conectado al servidor', 'success');
             this.messageManager?.showConnectionStatus(true, 'Conectado');
             
             this.emit('socket-connected', { socketId: this.socket.id });
@@ -59,7 +55,6 @@ export class SocketManager {
         this.socket.on('disconnect', (reason) => {
             this.isConnected = false;
             
-            Utils.log(`Desconectado: ${reason}`, 'warning');
             this.messageManager?.showConnectionStatus(false, 'Desconectado');
             
             this.emit('socket-disconnected', { reason });
@@ -69,7 +64,6 @@ export class SocketManager {
         this.socket.on('connect_error', (error) => {
             this.reconnectAttempts++;
             
-            Utils.log(`Error de conexión (intento ${this.reconnectAttempts}): ${error.message}`, 'error');
             
             if (this.reconnectAttempts >= this.maxReconnectAttempts) {
                 this.messageManager?.error('No se pudo conectar al servidor. Verifica tu conexión.');
@@ -82,7 +76,6 @@ export class SocketManager {
 
         // Reconexión exitosa
         this.socket.on('reconnect', (attemptNumber) => {
-            Utils.log(`Reconectado después de ${attemptNumber} intentos`, 'success');
             this.messageManager?.success('¡Reconectado al servidor!');
             
             this.emit('socket-reconnected', { attempts: attemptNumber });
@@ -101,31 +94,26 @@ export class SocketManager {
     setupGameEventHandlers() {
         // Estado del juego
         this.socket.on('game-state', (state) => {
-            Utils.log('Estado del juego recibido', 'info');
             this.emit('game-state-received', state);
         });
 
         // Nuevo spawn (LEGACY - se mantiene para compatibilidad)
         this.socket.on('new-spawn', (spawn) => {
-            Utils.log(`Nuevo spawn: ${spawn.emoji} (${spawn.type})`, 'info');
             this.emit('spawn-created', spawn);
         });
 
         // Spawn capturado
         this.socket.on('spawn-captured', (data) => {
-            Utils.log(`Spawn capturado por ${data.playerName}`, 'success');
             this.emit('spawn-captured', data);
         });
 
         // Spawn expirado (LEGACY)
         this.socket.on('spawn-expired', (spawnData) => {
-            Utils.log(`Spawn ${spawnData.id} expirado`, 'info');
             this.emit('spawn-expired', spawnData);
         });
 
         // Captura fallida
         this.socket.on('capture-failed', (data) => {
-            Utils.log(`Captura fallida: ${data.reason}`, 'warning');
             this.emit('capture-failed', data);
         });
 
@@ -136,19 +124,16 @@ export class SocketManager {
 
         // Jugador se unió
         this.socket.on('player-joined', (player) => {
-            Utils.log(`${player.name} se unió al juego`, 'info');
             this.emit('player-joined', player);
         });
 
         // Jugador se fue
         this.socket.on('player-left', (data) => {
-            Utils.log(`${data.playerName} dejó el juego`, 'info');
             this.emit('player-left', data);
         });
 
         // Bonus de streak
         this.socket.on('streak-bonus', (data) => {
-            Utils.log(`Streak bonus: ${data.streak} streak = ${data.bonusPoints} puntos`, 'success');
             this.emit('streak-bonus', data);
         });
 
@@ -164,7 +149,6 @@ export class SocketManager {
     setupProximityEventHandlers() {
         // Spawn descubierto - aparece cuando te acercas
         this.socket.on('spawn-discovered', (data) => {
-            Utils.log(`🔍 Objeto descubierto: ${data.spawn.emoji} a ${data.distance.toFixed(1)}m`, 'success');            
             this.emit('spawn-discovered', {
                 spawn: data.spawn,
                 distance: data.distance,
@@ -173,9 +157,7 @@ export class SocketManager {
         });
 
         // Spawn oculto - desaparece cuando te alejas
-        this.socket.on('spawn-hidden', (data) => {
-            Utils.log(`👻 Objeto oculto: ID ${data.spawnId} a ${data.distance.toFixed(1)}m`, 'info');
-            
+        this.socket.on('spawn-hidden', (data) => {            
             this.emit('spawn-hidden', {
                 spawnId: data.spawnId,
                 distance: data.distance,
@@ -185,7 +167,6 @@ export class SocketManager {
 
         // Spawn removido (capturado o expirado)
         this.socket.on('spawn-removed', (data) => {
-            Utils.log(`🗑️ Spawn removido: ID ${data.spawnId}`, 'info');
             
             this.emit('spawn-removed', {
                 spawnId: data.spawnId,
@@ -204,7 +185,6 @@ export class SocketManager {
         
         this.eventHandlers.get(eventName).push(handler);
         
-        Utils.log(`Handler registrado para evento: ${eventName}`, 'debug');
     }
 
     /**
@@ -217,7 +197,6 @@ export class SocketManager {
             
             if (index > -1) {
                 handlers.splice(index, 1);
-                Utils.log(`Handler eliminado para evento: ${eventName}`, 'debug');
             }
         }
     }
@@ -233,7 +212,6 @@ export class SocketManager {
                 try {
                     handler(data);
                 } catch (error) {
-                    Utils.log(`Error en handler de ${eventName}: ${error.message}`, 'error');
                 }
             });
         }
@@ -244,17 +222,14 @@ export class SocketManager {
      */
     send(eventName, data = null) {
         if (!this.isConnected) {
-            Utils.log(`No se puede enviar ${eventName}: no conectado`, 'warning');
             this.messageManager?.warning('Sin conexión al servidor');
             return false;
         }
 
         try {
             this.socket.emit(eventName, data);
-            Utils.log(`Enviado ${eventName}`, 'debug');
             return true;
         } catch (error) {
-            Utils.log(`Error enviando ${eventName}: ${error.message}`, 'error');
             return false;
         }
     }
@@ -321,7 +296,6 @@ export class SocketManager {
      */
     forceReconnect() {
         if (this.socket) {
-            Utils.log('Forzando reconexión...', 'info');
             this.socket.disconnect();
             this.socket.connect();
         }
@@ -342,9 +316,7 @@ export class SocketManager {
     /**
      * Limpiar y desconectar
      */
-    destroy() {
-        Utils.log('Destruyendo SocketManager...', 'info');
-        
+    destroy() {        
         // Limpiar event handlers
         this.eventHandlers.clear();
         
@@ -356,8 +328,6 @@ export class SocketManager {
         }
         
         this.isConnected = false;
-        this.messageManager = null;
-        
-        Utils.log('SocketManager destruido', 'info');
+        this.messageManager = null;        
     }
 }

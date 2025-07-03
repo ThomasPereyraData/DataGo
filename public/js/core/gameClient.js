@@ -75,8 +75,6 @@ export class GameClient {
     */
     async initialize() {
         try {
-            Utils.log('Inicializando DataGo Client - Con sistema FOV...', 'info');
-
             this.initializeElements();
             await this.initializeManagers();
             this.setupEventListeners();
@@ -97,10 +95,7 @@ export class GameClient {
             //     alert(`Modo: ${isStandalone ? 'STANDALONE ✅' : 'FULLSCREEN ❌'} | iOS PWA: ${isPWA}`);
             // }, 2000);
 
-            Utils.log('DataGo Client con FOV inicializado correctamente', 'success');
-
         } catch (error) {
-            Utils.log('Error inicializando cliente: ' + error.message, 'error');
             console.error('Initialization error:', error);
         }
     }
@@ -172,8 +167,6 @@ export class GameClient {
             btn.textContent = '⏳ Solicitando permisos...';
             btn.disabled = true;
 
-            Utils.log('🍎 Solicitando permisos iOS...', 'info');
-
             // Solicitar permisos de orientación
             let orientationPermission = 'granted';
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -217,9 +210,7 @@ export class GameClient {
                 this.showFallbackOption();
             }
 
-        } catch (error) {
-            Utils.log('❌ Error solicitando permisos: ' + error.message, 'error');
-            
+        } catch (error) {            
             btn.textContent = '❌ Error - Reintentar';
             btn.disabled = false;
             
@@ -231,9 +222,7 @@ export class GameClient {
      * Reinicializar RoomTracker con permisos concedidos
      */
     async reinitializeRoomTracker() {
-        if (this.roomTracker) {
-            Utils.log('🔄 Reinicializando RoomTracker con permisos...', 'info');
-            
+        if (this.roomTracker) {            
             // Recrear RoomTracker
             this.roomTracker = new RoomTracker(
                 this.config.roomSize.width,
@@ -299,7 +288,6 @@ export class GameClient {
             this.handleThrowMiss(missData);
         });
         
-        Utils.log('Sistema de lanzamiento configurado', 'success');
     }
 
     /**
@@ -308,7 +296,6 @@ export class GameClient {
     handleThrowHit(hitData) {
         const { target, accuracy, multiplier, screenDistance, physicalDistance } = hitData;
         
-        Utils.log(`🎯 Lanzamiento exitoso: ${accuracy} (${multiplier}x)`, 'success');
         
         this.socketManager.attemptCapture({
             spawnId: target.id,
@@ -329,7 +316,6 @@ export class GameClient {
     handleThrowMiss(missData) {
         const { target, screenDistance, reason } = missData;
         
-        Utils.log(`❌ Lanzamiento fallido: ${reason}`, 'warning');
         this.showTemporaryMessage('¡Inténtalo de nuevo!', 'info');
     }
 
@@ -459,19 +445,6 @@ export class GameClient {
             this.handleRegistrationSuccess(playerData);
         });
 
-        // Configurar callbacks del PWA Manager
-        this.pwaManager.setCallbacks({
-            onSuccess: () => {
-                Utils.log('🎉 PWA instalada exitosamente', 'success');
-            },
-            onError: (error) => {
-                Utils.log('❌ Error instalando PWA: ' + error.message, 'error');
-            },
-            onDeclined: () => {
-                Utils.log('❌ Usuario rechazó instalación PWA', 'warning');
-            }
-        });
-
         // Solo inicializar RoomTracker si no es iOS o si ya tiene permisos
         if (!Utils.isIOS() || this.iosPermissions.granted) {
             this.roomTracker = new RoomTracker(
@@ -497,9 +470,7 @@ export class GameClient {
         this.setupThrowMechanics();
     }
 
-    handleRegistrationFlowTriggered() {
-        Utils.log('📝 Flow manager solicita mostrar registro', 'info');
-        
+    handleRegistrationFlowTriggered() {        
         // Asegurarse de que el registration manager esté inicializado
         if (!this.registrationManager) {
             this.registrationManager = new RegistrationManager(this.messageManager);
@@ -607,9 +578,7 @@ export class GameClient {
     }
 
     attemptThrow(tapX, tapY) {
-        this.captureState.isCapturing = true;
-        Utils.log(`Lanzamiento hacia (${tapX}, ${tapY})`, 'info');
-        
+        this.captureState.isCapturing = true;        
         // usar spawns visibles en lugar de todos los spawns
         const result = this.throwMechanics.attemptThrow(
             tapX, 
@@ -626,7 +595,6 @@ export class GameClient {
             }
             this.captureState.isCapturing = false;
         } else {
-            Utils.log(`Lanzamiento iniciado: ${result.hitType}`, 'info');
             setTimeout(() => {
                 this.captureState.isCapturing = false;
             }, 1000);
@@ -689,8 +657,6 @@ export class GameClient {
         
         // Remover del DOM
         this.removeSpawnFromDOM(spawnId);
-        
-        Utils.log(`👻 Spawn ${spawnId} oculto`, 'info');
     }
 
     /**
@@ -705,8 +671,6 @@ export class GameClient {
         
         // Remover del DOM
         this.removeSpawnFromDOM(spawnId);
-        
-        Utils.log(`🗑️ Spawn ${spawnId} removido`, 'info');
     }
 
     // EVENT HANDLERS
@@ -749,9 +713,7 @@ export class GameClient {
         this.captureState.lastTapTime = now;
     }
 
-    handleRegistrationSuccess(playerData) {
-        Utils.log('✅ Registro completado para: ' + playerData.name + ' ' + playerData.lastName, 'success');
-        
+    handleRegistrationSuccess(playerData) {        
         // Guardar datos del jugador
         this.playerRegistrationData = {
             ...playerData,
@@ -763,9 +725,7 @@ export class GameClient {
         this.progressiveFlowManager.handleRegistrationCompleted(playerData);
     }
 
-    async handleReadyToPlay(registrationData) {
-        Utils.log('🎮 Listo para jugar, inicializando managers del juego...', 'success');
-        
+    async handleReadyToPlay(registrationData) {        
         // Si no están inicializados, inicializarlos ahora
         if (!this.cameraManager) {
             await this.initializeGameManagers();
@@ -784,8 +744,6 @@ export class GameClient {
 
         // Permisos iOS si es necesario
         this.checkiOSPermissions();
-
-        Utils.log('🎮 Juego completamente inicializado y listo', 'success');
     }
 
     proceedWithGameJoin() {
@@ -824,7 +782,6 @@ export class GameClient {
                 this.showTemporaryMessage('¡Gira para encontrar objetos!', 'info');
             }, 1000);
 
-            Utils.log('🎮 Jugador unido con datos de registro', 'success');
         } else {
             // Error al unirse
             this.elements.joinGameBtn.disabled = false;
@@ -848,9 +805,6 @@ export class GameClient {
         }
         
         this.captureState.isCapturing = true;
-        
-        Utils.log(`Captura clásica con método: ${method}`, 'info');
-        
         this.socketManager.attemptCapture({
             playerPosition: this.roomTracker.getPosition(),
             captureMethod: method
@@ -876,9 +830,7 @@ export class GameClient {
         }
     }
 
-    handleGameState(state) {
-        Utils.log('Estado del juego recibido', 'info');
-        
+    handleGameState(state) {        
         this.gameState.player = state.player;
         this.gameState.totalPlayers = state.totalPlayers || 1;
         
@@ -917,8 +869,6 @@ export class GameClient {
             if (navigator.vibrate) {
                 navigator.vibrate([100, 50, 100]);
             }
-        } else {
-            Utils.log(`${data.playerName} capturó un objeto`, 'info');
         }
     }
 
@@ -926,7 +876,6 @@ export class GameClient {
         const registrationData = this.playerRegistrationData || this.progressiveFlowManager.getRegistrationData();
 
         if (!registrationData) {
-            Utils.log('⚠️ No hay datos de registro para la captura', 'warning');
             return;
         }
 
@@ -1114,7 +1063,6 @@ export class GameClient {
         
         this.elements.arOverlay.appendChild(arElement);
         
-        Utils.log(`👁️ Spawn ${spawn.id} visible en FOV`, 'info');
     }
 
     /**
@@ -1126,9 +1074,7 @@ export class GameClient {
             element.classList.add('fov-leaving');
             setTimeout(() => {
                 element.remove();
-            }, 500);
-            
-            Utils.log(`👁️‍🗨️ Spawn ${spawnId} oculto del FOV`, 'info');
+            }, 500);            
         }
     }
 
@@ -1222,7 +1168,6 @@ export class GameClient {
         const element = document.getElementById(`spawn-${spawnId}`);
         if (element) {
             element.remove();
-            Utils.log(`🗑️ Spawn ${spawnId} removido del DOM`, 'debug');
         }
     }
 
@@ -1240,8 +1185,6 @@ export class GameClient {
     }
 
     destroy() {
-        Utils.log('Destruyendo GameClient con FOV...', 'info');
-
         this.progressiveFlowManager?.destroy();
         
         this.registrationManager?.destroy();
@@ -1262,9 +1205,7 @@ export class GameClient {
         
         if (window.gameClient === this) {
             window.gameClient = null;
-        }
-        
-        Utils.log('GameClient con FOV destruido', 'success');
+        }        
     }
 
     getRegistrationData() {

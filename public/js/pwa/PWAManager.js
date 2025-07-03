@@ -42,15 +42,11 @@ export class PWAManager {
     /**
      * Inicializar PWA Manager
      */
-    initialize() {
-        Utils.log('🚀 Inicializando PWA Manager...', 'info');
-        
+    initialize() {        
         this.detectPWASupport();
         this.setupEventListeners();
         this.checkIfAlreadyInstalled();
-        this.scheduleInstallPrompt();
-        
-        Utils.log('✅ PWA Manager inicializado', 'success');
+        this.scheduleInstallPrompt();        
     }
 
     /**
@@ -66,9 +62,7 @@ export class PWAManager {
             manifest: !!hasManifest,
             beforeInstallPrompt: hasBeforeInstallPrompt,
             isSupported: hasServiceWorker && hasManifest
-        };
-        
-        Utils.log(`PWA Support - SW: ${hasServiceWorker}, Manifest: ${!!hasManifest}, Install: ${hasBeforeInstallPrompt}`, 'debug');
+        };        
     }
 
     /**
@@ -94,9 +88,7 @@ export class PWAManager {
     /**
      * Manejar evento beforeinstallprompt - CONVERTIR SPINNER
      */
-    handleBeforeInstallPrompt(event) {
-        Utils.log('📱 PWA instalable detectada', 'success');
-        
+    handleBeforeInstallPrompt(event) {        
         // Prevenir el banner automático del navegador
         event.preventDefault();
         
@@ -123,9 +115,7 @@ export class PWAManager {
     /**
      * Manejar instalación exitosa - CON PERSISTENCIA
      */
-    handleAppInstalled() {
-        Utils.log('🎉 PWA instalada exitosamente', 'success');
-        
+    handleAppInstalled() {        
         this.state.isInstalled = true;
         this.state.deferredPrompt = null;
         
@@ -165,15 +155,12 @@ export class PWAManager {
         
         this.state.isInstalled = isStandalone;
         
-        if (isStandalone) {
-            Utils.log('📱 Ejecutándose como PWA instalada', 'success');
-            
+        if (isStandalone) {            
             // 🆕 Mensaje especial cuando se detecta PWA
             if (this.messageManager) {
                 this.messageManager.success('¡Ejecutándose como app instalada! 🎉');
             }
         } else {
-            Utils.log('🌐 Ejecutándose en navegador web', 'info');
         }
         
         return isStandalone;
@@ -193,15 +180,11 @@ export class PWAManager {
         const likelyInstalled = standalone || wasInstalledBefore;
         
         if (likelyInstalled) {
-            this.state.isInstalled = true;
-            Utils.log('✅ PWA detectada como ya instalada', 'success');
-            
+            this.state.isInstalled = true;            
             // 🆕 Guardar estado
             localStorage.setItem('datago-pwa-installed', 'true');
             return true;
-        }
-        
-        Utils.log('📱 PWA no detectada como instalada', 'info');
+        }        
         return false;
     }
 
@@ -211,14 +194,12 @@ export class PWAManager {
     scheduleInstallPrompt() {
         // No programar si ya está instalada
         if (this.state.isInstalled) {
-            Utils.log('⏭️ Saltando prompt - PWA ya instalada', 'info');
             return;
         }
         
         // 🆕 MODO EVENTO: Instrucciones directas para todos
         setTimeout(() => {
             if (!this.state.isInstalled && !this.state.installButtonCreated) {
-                Utils.log('🎪 Modo evento - mostrando botón directo', 'info');
                 this.showInstallButton();
             }
         }, this.config.showButtonAfterDelay);
@@ -229,9 +210,7 @@ export class PWAManager {
      */
     showEvaluatingButton() {
         if (this.state.installButtonCreated || this.state.isInstalled) return;
-        
-        Utils.log('⏳ Mostrando botón de evaluación PWA...', 'info');
-        
+                
         this.state.isEvaluating = true;
         
         const button = this.createEvaluatingButton();
@@ -249,9 +228,7 @@ export class PWAManager {
         // Mostrar mensaje explicativo
         if (this.messageManager) {
             this.messageManager.info('🔄 Evaluando compatibilidad de instalación...');
-        }
-        
-        Utils.log('⏳ Botón de evaluación PWA mostrado', 'info');
+        }        
     }
 
     /**
@@ -278,9 +255,7 @@ export class PWAManager {
     convertEvaluatingToInstall() {
         const button = this.elements.installButton;
         if (!button) return;
-        
-        Utils.log('🔄 Convirtiendo botón de evaluación a instalación', 'info');
-        
+                
         // Cambiar contenido con animación
         button.classList.add('converting');
         
@@ -305,9 +280,7 @@ export class PWAManager {
     /**
      * 🆕 Manejar timeout de evaluación
      */
-    handleEvaluationTimeout() {
-        Utils.log('⏰ Timeout de evaluación - convirtiendo a instrucciones manuales', 'warning');
-        
+    handleEvaluationTimeout() {        
         this.state.isEvaluating = false;
         
         const button = this.elements.installButton;
@@ -334,23 +307,18 @@ export class PWAManager {
     showInstallButton() {
         // 🆕 Verificación extra antes de mostrar
         if (this.state.isInstalled) {
-            Utils.log('⚠️ PWA ya instalada - no mostrando botón', 'debug');
             return;
         }
         
         if (this.state.installButtonCreated) {
-            Utils.log('⚠️ Botón PWA ya creado', 'debug');
             return;
         }
         
         // 🆕 Verificar una vez más standalone mode
         if (this.detectStandaloneMode()) {
-            Utils.log('⚠️ Standalone detectado - no mostrando botón', 'debug');
             return;
         }
-        
-        Utils.log('📱 Creando botón de instalación PWA...', 'info');
-        
+                
         const button = this.createInstallButton();
         this.elements.installButton = button;
         this.state.installButtonCreated = true;
@@ -361,9 +329,7 @@ export class PWAManager {
         // Animar entrada
         setTimeout(() => {
             button.classList.add('show');
-        }, 100);
-        
-        Utils.log('✅ Botón de instalación PWA mostrado', 'success');
+        }, 100);        
     }
 
     /**
@@ -405,9 +371,7 @@ export class PWAManager {
      * Iniciar flujo de instalación - MODO EVENTO DIRECTO
      */
     async initiateInstallFlow() {
-        try {
-            Utils.log('🎪 Iniciando instalación modo evento...', 'info');
-            
+        try {            
             // 🆕 MODO EVENTO: Siempre mostrar instrucciones primero
             if (!Utils.isIOS() && !this.state.deferredPrompt) {
                 // Android sin prompt nativo - instrucciones directas
@@ -422,10 +386,7 @@ export class PWAManager {
                 const { outcome } = await this.state.deferredPrompt.userChoice;
                 
                 if (outcome === 'accepted') {
-                    Utils.log('✅ Usuario aceptó instalación nativa', 'success');
-                } else {
-                    Utils.log('❌ Usuario rechazó instalación nativa', 'warning');
-                    
+                } else {                    
                     if (this.onInstallDeclined) {
                         this.onInstallDeclined();
                     }
@@ -441,9 +402,7 @@ export class PWAManager {
                 this.showManualInstructions();
             }
             
-        } catch (error) {
-            Utils.log('❌ Error en instalación: ' + error.message, 'error');
-            
+        } catch (error) {            
             if (this.onInstallError) {
                 this.onInstallError(error);
             }
@@ -467,9 +426,7 @@ export class PWAManager {
         // Animar entrada
         setTimeout(() => {
             instructions.classList.add('show');
-        }, 100);
-        
-        Utils.log('📖 Mostrando instrucciones manuales', 'info');
+        }, 100);        
     }
 
     /**
@@ -592,15 +549,6 @@ export class PWAManager {
     }
 
     /**
-     * Configurar callbacks
-     */
-    setCallbacks({ onSuccess, onError, onDeclined }) {
-        this.onInstallSuccess = onSuccess;
-        this.onInstallError = onError;
-        this.onInstallDeclined = onDeclined;
-    }
-
-    /**
      * Verificar si PWA está instalada
      */
     isInstalled() {
@@ -629,7 +577,6 @@ export class PWAManager {
      */
     configure(newConfig) {
         this.config = { ...this.config, ...newConfig };
-        Utils.log('PWA Manager reconfigurado', 'info');
     }
 
     /**
@@ -644,7 +591,6 @@ export class PWAManager {
         this.state.deferredPrompt = null;
         this.messageManager = null;
         
-        Utils.log('PWA Manager destruido', 'info');
     }
 }
 

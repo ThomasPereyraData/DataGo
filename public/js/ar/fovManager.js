@@ -31,9 +31,7 @@ export class FOVManager {
         
         // Actualizar dimensiones si cambia la pantalla
         this.updateScreenDimensions();
-        window.addEventListener('resize', () => this.updateScreenDimensions());
-        
-        Utils.log('FOVManager inicializado', 'success');
+        window.addEventListener('resize', () => this.updateScreenDimensions());        
     }
 
     /**
@@ -44,8 +42,6 @@ export class FOVManager {
         this.screen.height = window.innerHeight;
         this.screen.centerX = this.screen.width / 2;
         this.screen.centerY = this.screen.height / 2;
-        
-        Utils.log(`Pantalla: ${this.screen.width}x${this.screen.height}`, 'debug');
     }
 
     /**

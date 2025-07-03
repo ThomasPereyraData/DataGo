@@ -16,7 +16,7 @@ export class MessageManager {
         this.messageBox = document.getElementById('messageBox');
         
         if (!this.messageBox) {
-            Utils.log('MessageBox element not found!', 'error');
+            throw new Error('Message box element not found');
         }
     }
 
@@ -174,8 +174,6 @@ export class MessageManager {
                 this.hide();
             }, message.duration);
         }
-
-        Utils.log(`Message shown: ${message.text}`, message.type);
     }
 
     _processQueue() {

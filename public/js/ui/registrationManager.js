@@ -44,12 +44,6 @@ export class RegistrationManager {
         }
         
         this.setupEventListeners();
-        
-        if (this.state.isPWA) {
-            Utils.log('✅ RegistrationManager inicializado (PWA mode)', 'success');
-        } else {
-            Utils.log('✅ RegistrationManager inicializado (Browser mode)', 'success');
-        }
     }
 
     /**
@@ -94,7 +88,6 @@ export class RegistrationManager {
             }
         });
         
-        Utils.log('Event listeners configurados', 'debug');
     }
 
     /**
@@ -139,9 +132,7 @@ export class RegistrationManager {
      */
     show() {
         if (this.state.isVisible) return;
-        
-        Utils.log('📋 Mostrando formulario de registro...', 'info');
-        
+                
         // Mostrar overlay
         this.elements.overlay.classList.add('show');
         this.state.isVisible = true;
@@ -149,7 +140,6 @@ export class RegistrationManager {
         // Focus diferente para PWA vs Browser
         if (this.state.isPWA) {
             // En PWA, no hacer focus automático - esperar tap del usuario
-            Utils.log('PWA mode: Esperando tap del usuario para focus', 'debug');
         } else {
             // En browser normal, focus automático
             setTimeout(() => {
@@ -166,8 +156,6 @@ export class RegistrationManager {
         
         this.elements.overlay.classList.remove('show');
         this.state.isVisible = false;
-        
-        Utils.log('📋 Formulario oculto', 'debug');
     }
 
     /**
@@ -175,9 +163,7 @@ export class RegistrationManager {
      */
     async handleSubmit() {
         if (this.state.isSubmitting) return;
-        
-        Utils.log('📝 Procesando registro...', 'info');
-        
+                
         // Validar
         const validation = this.validateForm();
         if (!validation.isValid) {
@@ -205,9 +191,7 @@ export class RegistrationManager {
             await Utils.wait(800);
             
             // Guardar datos
-            this.state.playerData = formData;
-            
-            Utils.log('✅ Registro exitoso', 'success');
+            this.state.playerData = formData;            
             this.messageManager?.success('¡Registro exitoso! Iniciando juego...');
             
             // Callback
@@ -219,7 +203,6 @@ export class RegistrationManager {
             this.hide();
             
         } catch (error) {
-            Utils.log('❌ Error en registro: ' + error.message, 'error');
             this.messageManager?.error('Error en registro de usuario');
             this.setSubmittingState(false);
         }
@@ -410,8 +393,6 @@ export class RegistrationManager {
      */
     destroy() {
         this.hide();
-        this.onRegistrationSuccess = null;
-        
-        Utils.log('RegistrationManager destruido', 'info');
+        this.onRegistrationSuccess = null;        
     }
 }

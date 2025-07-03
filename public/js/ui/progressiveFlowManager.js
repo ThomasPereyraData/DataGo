@@ -34,13 +34,11 @@ export class ProgressiveFlowManager {
      * Inicializar flow manager
      */
     initialize() {
-        Utils.log('🎭 Inicializando ProgressiveFlowManager...', 'info');
         
         this.checkRegistrationStatus();
         this.setupEventListeners();
         this.determineInitialScreen();
         
-        Utils.log(`✅ FlowManager inicializado - Pantalla: ${this.state.currentScreen} | PWA: ${this.state.isPWA}`, 'success');
     }
 
     /**
@@ -53,17 +51,13 @@ export class ProgressiveFlowManager {
             try {
                 this.state.registrationData = JSON.parse(registrationData);
                 this.state.isRegistered = true;
-                
-                Utils.log(`📋 Usuario ya registrado: ${this.state.registrationData.nombre} ${this.state.registrationData.apellido}`, 'info');
-                
+                                
             } catch (error) {
-                Utils.log('❌ Error parseando datos de registro, limpiando...', 'warning');
                 localStorage.removeItem('datago-registro');
                 this.state.isRegistered = false;
             }
         } else {
             this.state.isRegistered = false;
-            Utils.log('📋 Usuario no registrado', 'info');
         }
     }
 
@@ -116,9 +110,7 @@ export class ProgressiveFlowManager {
     showWelcomeScreen() {
         this.elements.welcomeScreen.style.display = 'flex';
         this.elements.gameScreen.style.display = 'none';
-        this.state.currentScreen = 'welcome';
-        
-        Utils.log('👋 Mostrando pantalla de bienvenida', 'info');
+        this.state.currentScreen = 'welcome';        
     }
 
     /**
@@ -129,7 +121,6 @@ export class ProgressiveFlowManager {
         this.elements.gameScreen.style.display = 'block';
         this.state.currentScreen = 'game';
         
-        Utils.log('🎮 Mostrando pantalla de juego', 'info');
     }
 
     /**
@@ -142,17 +133,13 @@ export class ProgressiveFlowManager {
             registerBtn.onclick = () => {
                 this.handleRegisterClick();
             };
-        }
-        
-        Utils.log('📝 Mostrando botón de registro en PWA', 'info');
+        }        
     }
 
     /**
      * Manejar click en registrarse (PWA)
      */
     handleRegisterClick() {
-        Utils.log('📝 Usuario solicita registrarse en PWA', 'info');
-        
         // Si es iOS, mostrar alerta rápida
         if (Utils.isIOS()) {
             this.showIOSAlert(() => {
@@ -178,9 +165,7 @@ export class ProgressiveFlowManager {
     showPWAPromotion() {
         if (!this.state.isPWA && this.elements.pwaPromotion) {
             this.elements.pwaPromotion.style.display = 'block';
-            this.elements.pwaPromotion.classList.remove('hidden');
-            
-            Utils.log('📱 Mostrando promoción PWA', 'info');
+            this.elements.pwaPromotion.classList.remove('hidden');            
         }
     }
 
@@ -200,9 +185,7 @@ export class ProgressiveFlowManager {
     /**
      * Manejar inicio de registro
      */
-    handleStartRegistration() {
-        Utils.log('📝 Iniciando proceso de registro...', 'info');
-        
+    handleStartRegistration() {        
         // Callback para que GameClient muestre el formulario
         if (this.onRegistrationComplete) {
             // El GameClient manejará mostrar el modal de registro
@@ -213,9 +196,7 @@ export class ProgressiveFlowManager {
     /**
      * Manejar completación del registro
      */
-    handleRegistrationCompleted(registrationData) {
-        Utils.log('✅ Registro completado, cambiando a pantalla de juego', 'success');
-        
+    handleRegistrationCompleted(registrationData) {        
         // Guardar datos
         this.state.registrationData = registrationData;
         this.state.isRegistered = true;
@@ -266,7 +247,6 @@ export class ProgressiveFlowManager {
      * Manejar instrucciones PWA
      */
     handleShowPWAInstructions() {
-        Utils.log('📱 Mostrando instrucciones de instalación PWA', 'info');
         
         const browserName = this.detectBrowser();
         const instructions = this.getInstructionsForBrowser(browserName);
@@ -453,7 +433,5 @@ export class ProgressiveFlowManager {
     destroy() {
         this.onRegistrationComplete = null;
         this.onReadyToPlay = null;
-        
-        Utils.log('ProgressiveFlowManager destruido', 'info');
     }
 }

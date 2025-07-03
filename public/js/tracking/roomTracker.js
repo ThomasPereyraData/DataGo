@@ -44,20 +44,15 @@ export class RoomTracker {
     /**
      * 🆕 Inicializar SIN solicitud automática de permisos
      */
-    async initialize() {
-        Utils.log('Iniciando RoomTracker (sin permisos automáticos)...', 'info');
-        
+    async initialize() {        
         try {
             // 🆕 No solicitar permisos automáticamente
             // Los permisos se manejan desde GameClient con botón manual
             
             this.setupEventListeners();
             this.scheduleAutoInitialization();
-            
-            Utils.log('✅ RoomTracker inicializado (esperando permisos)', 'success');
-            
+                        
         } catch (error) {
-            Utils.log('Error inicializando RoomTracker: ' + error.message, 'error');
             this.fallbackToStaticMode();
         }
     }
@@ -65,9 +60,7 @@ export class RoomTracker {
     /**
      * 🆕 Modo de respaldo sin sensores
      */
-    fallbackToStaticMode() {
-        Utils.log('🔒 Activando modo estático (sin sensores)', 'warning');
-        
+    fallbackToStaticMode() {        
         // Simular inicialización exitosa pero sin sensores
         this.isInitialized = true;
         this.headingCalibrated = true;
@@ -88,7 +81,6 @@ export class RoomTracker {
             window.addEventListener('devicemotion', 
                 Utils.throttle((e) => this.handleDeviceMotion(e), 100)
             );
-            Utils.log('📱 Event listener DeviceMotion configurado', 'debug');
         }
         
         if (window.DeviceOrientationEvent) {
@@ -96,9 +88,7 @@ export class RoomTracker {
             
             // Probar ambos tipos de eventos
             window.addEventListener('deviceorientationabsolute', orientationHandler);
-            window.addEventListener('deviceorientation', orientationHandler);
-            
-            Utils.log('🧭 Event listeners DeviceOrientation configurados', 'debug');
+            window.addEventListener('deviceorientation', orientationHandler);            
         }
     }
 
@@ -120,10 +110,7 @@ export class RoomTracker {
         this.isInitialized = true;
         this.headingCalibrated = true;
         this.initialHeading = this.heading;
-        
-        Utils.log(`Auto-inicializado en (${Utils.formatNumber(this.position.x)}, ${Utils.formatNumber(this.position.y)})`, 'success');
-        Utils.log(`Heading inicial: ${Utils.formatNumber(this.heading)}°`, 'info');
-        
+                
         // 🆕 No mostrar mensaje aquí, se maneja desde GameClient
         this.triggerPositionUpdate();
     }
@@ -134,7 +121,6 @@ export class RoomTracker {
     handleDeviceMotion(event) {
         const acc = event.accelerationIncludingGravity;
         if (!acc) {
-            Utils.log('⚠️ No hay datos de aceleración', 'debug');
             return;
         }
         
@@ -142,19 +128,16 @@ export class RoomTracker {
         
         // 🆕 Filtrar movimientos muy extremos (sacudidas, etc.)
         if (magnitude > 20) {
-            Utils.log(`🚫 Movimiento muy extremo ignorado: ${magnitude.toFixed(1)}`, 'debug');
             return;
         }
         
         // Retrasar inicialización si hay mucho movimiento
         if (!this.isInitialized && magnitude > 15) {  // Aumentado de 12 a 15
-            Utils.log('Detectado movimiento, esperando que se detenga...', 'debug');
             return;
         }
         
         // Detectar paso
         if (this.shouldDetectStep(magnitude)) {
-            Utils.log(`👣 Paso detectado: ${magnitude.toFixed(1)}`, 'debug');
             this.onStepDetected();
             this.lastStepTime = Date.now();
         }
@@ -184,9 +167,7 @@ export class RoomTracker {
         
         if (heading !== null && heading !== undefined) {
             this.heading = Utils.smoothHeading(this.heading, heading);
-            Utils.log(`🧭 Orientación actualizada: ${Utils.formatNumber(this.heading)}°`, 'debug');
         } else {
-            Utils.log('⚠️ No hay datos de orientación', 'debug');
         }
     }
 
@@ -268,10 +249,8 @@ export class RoomTracker {
         this.position = newPosition;
         this.addToHistory(this.position);
         
-        const smoothedPosition = this.getSmoothedPosition();
-        
-        Utils.log(`Paso: (${Utils.formatNumber(smoothedPosition.x)}, ${Utils.formatNumber(smoothedPosition.y)}) | Heading: ${Utils.formatNumber(this.heading)}°`, 'debug');
-        
+        this.getSmoothedPosition();
+                
         this.triggerPositionUpdate();
     }
 
@@ -319,9 +298,7 @@ export class RoomTracker {
     /**
      * Recalibrar tracker
      */
-    recalibrate() {
-        Utils.log('Recalibrando tracker...', 'info');
-        
+    recalibrate() {        
         this.position = { x: this.roomSize.width/2, y: this.roomSize.height/2 };
         this.driftCorrection = { x: 0, y: 0 };
         this.positionHistory = [];
@@ -341,8 +318,7 @@ export class RoomTracker {
         this.driftCorrection = { x: 0, y: 0 };
         this.positionHistory = [];
         this.boundaryHitCount = 0;
-        
-        Utils.log('Tracker reseteado', 'info');
+                
         this.scheduleAutoInitialization();
     }
 

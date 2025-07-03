@@ -135,8 +135,6 @@ export class ThrowMechanics {
             this.resolveThrow(projectileId, target, element, hitType, screenDistance, physicalDistance);
         }, 800); // Duración de la animación del proyectil
 
-        Utils.log(`Lanzamiento iniciado: ${hitType} (${screenDistance.toFixed(0)}px)`, 'info');
-
         return { 
             success: true, 
             hitType: hitType,
@@ -241,9 +239,7 @@ export class ThrowMechanics {
     /**
      * Manejar hit exitoso
      */
-    handleThrowHit(target, accuracy, multiplier, screenDistance, physicalDistance) {
-        Utils.log(`🎯 HIT ${accuracy.toUpperCase()}! Multiplicador: ${multiplier}x`, 'success');
-        
+    handleThrowHit(target, accuracy, multiplier, screenDistance, physicalDistance) {        
         if (this.onThrowHit) {
             this.onThrowHit({
                 target: target,
@@ -258,9 +254,7 @@ export class ThrowMechanics {
     /**
      * SIMPLIFICADO: Manejar miss sin detalles de distancia física
      */
-    handleThrowMiss(target, screenDistance) {
-        Utils.log(`❌ MISS - Distancia: ${screenDistance.toFixed(0)}px`, 'warning');
-        
+    handleThrowMiss(target, screenDistance) {        
         if (this.onThrowMiss) {
             this.onThrowMiss({
                 target: target,
@@ -515,8 +509,6 @@ export class ThrowMechanics {
         
         // Limpiar callbacks
         this.onThrowHit = null;
-        this.onThrowMiss = null;
-        
-        Utils.log('ThrowMechanics Solo Proximidad destruido', 'info');
+        this.onThrowMiss = null;        
     }
 }

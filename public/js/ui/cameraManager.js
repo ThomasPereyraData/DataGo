@@ -37,7 +37,6 @@ export class CameraManager {
         this.cameraVideo = document.getElementById('cameraVideo');
         
         if (!this.cameraVideo) {
-            Utils.log('Camera video element not found!', 'error');
             throw new Error('Camera video element not found');
         }
     }
@@ -47,22 +46,16 @@ export class CameraManager {
      */
     async requestCameraAccess() {
         try {
-            Utils.log('Solicitando acceso a la cámara...', 'info');
             this.messageManager?.info('Solicitando acceso a la cámara...');
             
             this.validateGetUserMedia();
-            
             const stream = await this.tryMultipleConfigs();
-            
             await this.setupCamera(stream);
-            
-            Utils.log('Cámara activada exitosamente', 'success');
             this.messageManager?.success('¡Cámara activada!');
             
             return true;
             
         } catch (error) {
-            Utils.log('Error accediendo a la cámara: ' + error.message, 'error');
             this.handleCameraError(error);
             return false;
         }
@@ -83,16 +76,12 @@ export class CameraManager {
     async tryMultipleConfigs() {
         let lastError;
         
-        for (const [index, config] of this.cameraConfigs.entries()) {
+        for (const config of this.cameraConfigs) {
             try {
-                Utils.log(`Probando configuración ${index + 1}/${this.cameraConfigs.length}`, 'debug');
                 const stream = await navigator.mediaDevices.getUserMedia(config);
-                
-                Utils.log('Configuración exitosa: ' + JSON.stringify(config.video), 'success');
                 return stream;
                 
             } catch (error) {
-                Utils.log(`Configuración ${index + 1} falló: ${error.message}`, 'warning');
                 lastError = error;
                 continue;
             }
@@ -111,20 +100,17 @@ export class CameraManager {
             this.isActive = true;
             
             this.cameraVideo.onloadedmetadata = () => {
-                Utils.log('Metadata de video cargada', 'debug');
                 this.logCameraInfo();
                 resolve();
             };
             
             this.cameraVideo.onerror = (error) => {
-                Utils.log('Error en elemento video: ' + error, 'error');
                 reject(error);
             };
             
             // Timeout por si no se dispara onloadedmetadata
             setTimeout(() => {
                 if (this.isActive) {
-                    Utils.log('Video iniciado (timeout)', 'info');
                     resolve();
                 }
             }, 2000);
@@ -139,7 +125,6 @@ export class CameraManager {
             const videoTrack = this.stream.getVideoTracks()[0];
             if (videoTrack) {
                 const settings = videoTrack.getSettings();
-                Utils.log(`Cámara: ${settings.width}x${settings.height} - ${settings.facingMode || 'unknown'}`, 'info');
             }
         }
     }
@@ -180,7 +165,6 @@ export class CameraManager {
         if (this.stream) {
             this.stream.getTracks().forEach(track => {
                 track.stop();
-                Utils.log(`Track ${track.kind} detenido`, 'info');
             });
             
             this.stream = null;
@@ -190,7 +174,6 @@ export class CameraManager {
                 this.cameraVideo.srcObject = null;
             }
             
-            Utils.log('Cámara detenida', 'info');
         }
     }
 
@@ -199,7 +182,6 @@ export class CameraManager {
      */
     async switchCamera() {
         if (!this.isActive) {
-            Utils.log('No hay cámara activa para cambiar', 'warning');
             return false;
         }
 
@@ -208,9 +190,7 @@ export class CameraManager {
             const currentFacingMode = currentTrack.getSettings().facingMode;
             
             const newFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-            
-            Utils.log(`Cambiando de cámara ${currentFacingMode} a ${newFacingMode}`, 'info');
-            
+                        
             this.stopCamera();
             
             const newStream = await navigator.mediaDevices.getUserMedia({
@@ -223,14 +203,13 @@ export class CameraManager {
             return true;
             
         } catch (error) {
-            Utils.log('Error cambiando cámara: ' + error.message, 'error');
             this.messageManager?.error('No se pudo cambiar la cámara');
             
             // Intentar reactivar la cámara anterior
             try {
                 await this.requestCameraAccess();
             } catch (restoreError) {
-                Utils.log('Error restaurando cámara: ' + restoreError.message, 'error');
+                console.error('Error al restaurar la cámara:', restoreError);
             }
             
             return false;
@@ -258,7 +237,6 @@ export class CameraManager {
      */
     takeScreenshot() {
         if (!this.isActive || !this.cameraVideo) {
-            Utils.log('Cámara no disponible para screenshot', 'error');
             return null;
         }
 
@@ -273,11 +251,9 @@ export class CameraManager {
             
             const dataURL = canvas.toDataURL('image/jpeg', 0.8);
             
-            Utils.log('Screenshot capturado', 'success');
             return dataURL;
             
         } catch (error) {
-            Utils.log('Error capturando screenshot: ' + error.message, 'error');
             return null;
         }
     }
@@ -306,17 +282,13 @@ export class CameraManager {
      */
     handleVisibilityChange() {
         if (document.hidden && this.isActive) {
-            Utils.log('Aplicación en background - pausando cámara', 'info');
             // Opcional: pausar el video para ahorrar batería
             if (this.cameraVideo) {
                 this.cameraVideo.pause();
             }
         } else if (!document.hidden && this.isActive) {
-            Utils.log('Aplicación en foreground - reanudando cámara', 'info');
             if (this.cameraVideo) {
-                this.cameraVideo.play().catch(error => {
-                    Utils.log('Error reanudando video: ' + error.message, 'error');
-                });
+                this.cameraVideo.play().catch(error => {});
             }
         }
     }
@@ -333,6 +305,5 @@ export class CameraManager {
         this.cameraVideo = null;
         this.messageManager = null;
         
-        Utils.log('CameraManager destruido', 'info');
     }
 }

@@ -17,7 +17,6 @@ class DataGoApp {
      */
     async initialize() {
         try {
-            Utils.log('🚀 Iniciando DataGo v2.0.0...', 'info');
             
             // Verificar compatibilidad
             this.checkCompatibility();
@@ -29,10 +28,8 @@ class DataGoApp {
             this.gameClient = new GameClient();
                         
             this.isInitialized = true;
-            Utils.log('✅ DataGo inicializado correctamente', 'success');
             
         } catch (error) {
-            Utils.log('❌ Error crítico en inicialización: ' + error.message, 'error');
             this.handleCriticalError(error);
         }
     }
@@ -56,11 +53,6 @@ class DataGoApp {
         if (unsupported.length > 0) {
             throw new Error(`Características no soportadas: ${unsupported.join(', ')}`);
         }
-
-        Utils.log('✅ Verificación de compatibilidad exitosa', 'success');
-        
-        // Log información del dispositivo
-        Utils.log(`Dispositivo: ${Utils.isMobile() ? 'Móvil' : 'Desktop'} | ${Utils.isIOS() ? 'iOS' : 'Otro'}`, 'info');
     }
 
     /**
@@ -70,13 +62,9 @@ class DataGoApp {
         if ('serviceWorker' in navigator) {
             try {
                 const registration = await navigator.serviceWorker.register('/sw.js');
-                
-                Utils.log('Service Worker registrado: ' + registration.scope, 'success');
-                
+                                
                 // Manejar actualizaciones
-                // registration.addEventListener('updatefound', () => {
-                //     Utils.log('Actualización disponible', 'info');
-                    
+                // registration.addEventListener('updatefound', () => {                    
                 //     const newWorker = registration.installing;
                 //     newWorker.addEventListener('statechange', () => {
                 //         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
@@ -86,11 +74,9 @@ class DataGoApp {
                 // });
                 
             } catch (error) {
-                Utils.log('Error registrando Service Worker: ' + error.message, 'warning');
                 // No es crítico, continúa sin SW
             }
         } else {
-            Utils.log('Service Worker no soportado', 'warning');
         }
     }
 
@@ -209,9 +195,7 @@ let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    
-    Utils.log('PWA instalable detectada', 'info');
-    
+        
     // Mostrar botón de instalación después de un tiempo
     setTimeout(() => {
         if (deferredPrompt && window.dataGoApp?.gameClient?.messageManager) {
@@ -221,7 +205,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 
 window.addEventListener('appinstalled', () => {
-    Utils.log('PWA instalada exitosamente', 'success');
     deferredPrompt = null;
 });
 
@@ -231,14 +214,7 @@ window.addEventListener('appinstalled', () => {
 window.installPWA = async () => {
     if (deferredPrompt) {
         deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        
-        if (outcome === 'accepted') {
-            Utils.log('Usuario aceptó instalar PWA', 'success');
-        } else {
-            Utils.log('Usuario rechazó instalar PWA', 'info');
-        }
-        
+        await deferredPrompt.userChoice;
         deferredPrompt = null;
     }
 };

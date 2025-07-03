@@ -51,24 +51,24 @@ const PROXIMITY_CONFIG = {
 // Tipos de objetos
 const SPAWN_TYPES = {
   common: {
-    images: ['common/IQU.png', 'common/LogoData.png'],
-    points: 10,
+    images: ['common/LogoData.png','common/Bob.png','common/Dora.png'],
+    points: 5,
     probability: 0.5,
     despawnTime: 25000,
     captureRange: 2.2,
     color: '#00ff88'
   },
   rare: {
-    images: ['rare/Bob.png'],
-    points: 25,
-    probability: 0.25,
+    images: ['rare/QlikLogo.png'],
+    points: 10,
+    probability: 0.10,
     despawnTime: 20000,
     captureRange: 2.0,
     color: '#ffd700'
   },
   epic: {
-    images: ['epic/Dora.png'],
-    points: 50,
+    images: ['common/IQU.png'],
+    points: 25,
     probability: 0.05,
     captureRange: 1.8,
     despawnTime: 15000,
@@ -248,7 +248,7 @@ function createSpawnInZone(zoneId) {
   let position;
   let attempts = 0;
   const maxAttempts = 5;
-  const minDistance = 1.8; // Aumentado de 1.0 a 1.8 metros
+  const minDistance = 2.5; 
   
   do {
     position = generatePositionInZone(zoneId);
@@ -259,7 +259,6 @@ function createSpawnInZone(zoneId) {
     if (!tooClose) break;
     
     attempts++;
-    console.log(`⚠️ Intento ${attempts}: Posición muy cerca en zona ${zoneId}`);
     
   } while (attempts < maxAttempts);
   

@@ -4,12 +4,16 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import gameObjects from './QlikObjects.json' assert { type: 'json' };
+import { readFileSync } from 'fs';
 import fetch from 'node-fetch';
 
 // Obtener __dirname en ES6 modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+const gameObjects = JSON.parse(
+  readFileSync(join(__dirname, 'QlikObjects.json'), 'utf-8')
+);
 
 const app = express();
 const server = createServer(app);

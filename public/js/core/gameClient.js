@@ -94,7 +94,6 @@ export class GameClient {
             //     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
             //     const isPWA = window.navigator.standalone === true;
     
-            //     alert(`Modo: ${isStandalone ? 'STANDALONE ✅' : 'FULLSCREEN ❌'} | iOS PWA: ${isPWA}`);
             // }, 2000);
 
         } catch (error) {
@@ -763,18 +762,12 @@ export class GameClient {
     }
 
     handleRegistrationSuccess(playerData) {    
-        // alert para debugging
-        alert(`Registro exitoso: ${JSON.stringify(playerData)}`);
-        
         // Guardar datos del jugador
         this.playerRegistrationData = {
             ...playerData,
             IdSocket: null, // Se asignará cuando se conecte
             registeredAt: Date.now()
         };
-
-        // alert playerData guardado para debugging
-        alert(`Datos del jugador guardados: ${JSON.stringify(this.playerRegistrationData)}`);
 
         // Datos para el backend
         this.progressiveFlowManager.handleRegistrationCompleted(playerData);

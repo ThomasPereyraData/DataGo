@@ -10,7 +10,7 @@ import { SocketManager } from "./socketManager.js";
 import { PWAManager } from "../pwa/PWAManager.js";
 import { RegistrationManager } from "../ui/registrationManager.js"; 
 import { ProgressiveFlowManager } from "../ui/progressiveFlowManager.js";
-
+import { ApiManager } from "../api/apiManager.js";
 export class GameClient {
     constructor() {
         // Estado del juego
@@ -65,7 +65,9 @@ export class GameClient {
         this.playerRegistrationData = null;
 
         this.progressiveFlowManager = null;
-        this.playerRegistrationData = null;
+
+        this.registrationInProgress = false;
+        this.lastRegistrationTime = 0;
 
         this.initialize();
     }
@@ -109,6 +111,7 @@ export class GameClient {
             this.iosPermissions.buttonShown = true;
         }
     }
+
 
     /**
      * Mostrar botón para solicitar permisos iOS
@@ -345,17 +348,7 @@ export class GameClient {
      * Configurar UI limpia
      */
     setupCleanUI() {
-        this.hideVerboseElements();
         this.createCleanIndicators();
-    }
-
-    hideVerboseElements() {
-        document.getElementById('positionDisplay')?.remove();
-        document.getElementById('proximityStats')?.remove();
-        
-        if (this.elements.messageBox) {
-            this.elements.messageBox.style.display = 'none';
-        }
     }
 
     createCleanIndicators() {
@@ -436,6 +429,8 @@ export class GameClient {
         this.socketManager = new SocketManager(this.messageManager);
         this.fovManager = new FOVManager();
         this.pwaManager = new PWAManager(this.messageManager);
+        // AGREGAR después de this.pwaManager = new PWAManager(this.messageManager);
+        this.apiManager = new ApiManager(this.messageManager);
         
         // 🆕 CREAR REGISTRATION MANAGER PERO NO INICIALIZAR AÚN
         this.registrationManager = new RegistrationManager(this.messageManager);
@@ -444,6 +439,9 @@ export class GameClient {
         this.registrationManager.setOnRegistrationSuccess((playerData) => {
             this.handleRegistrationSuccess(playerData);
         });
+
+        // 🔧 MOVER setupEventListeners AQUÍ para asegurar que se ejecute
+        this.setupEventListeners();
 
         // Solo inicializar RoomTracker si no es iOS o si ya tiene permisos
         if (!Utils.isIOS() || this.iosPermissions.granted) {
@@ -464,7 +462,7 @@ export class GameClient {
         }
 
         this.setupManagerCallbacks();
-        this.setupEventListeners();
+        // this.setupEventListeners();
         this.setupInteractions();
         this.setupCleanUI();
         this.setupThrowMechanics();
@@ -522,25 +520,48 @@ export class GameClient {
         });
     }
 
-    setupEventListeners() {
+    setupEventListeners() {        
+        // Event listeners existentes...
         this.elements.startCameraBtn?.addEventListener('click', () => {
             this.handleStartCamera();
         });
 
         if (this.progressiveFlowManager && this.progressiveFlowManager.getCurrentScreen() === 'game') {
-        this.elements.joinGameBtn?.addEventListener('click', () => {
-            this.handleJoinGame();
-        });
-    }
+            this.elements.joinGameBtn?.addEventListener('click', () => {
+                this.handleJoinGame();
+            });
+        }
 
         document.addEventListener('visibilitychange', () => {
             this.handleVisibilityChange();
         });
 
-        //  Listener para actualizar FOV cuando cambia orientación
         window.addEventListener('deviceorientation', () => {
             this.updateFOVDisplay();
         });
+
+        // Cierre de página/app
+        window.addEventListener('beforeunload', (event) => {
+            this.sendDisconnectionBeacon();
+        });
+
+        // App va a segundo plano (móviles)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.sendDisconnectionBeacon();
+            }
+        });
+
+        // PWA: cuando se cierra la app
+        window.addEventListener('pagehide', (event) => {
+            this.sendDisconnectionBeacon();
+        });
+
+        // chequeo que el socketManager tenga sus listeners
+        if (this.socketManager) {
+            console.log('🔌 Verificando socketManager listeners...');
+            // Esto se hace en socketManager, pero verificamos que exista
+        }
     }
 
     setupInteractions() {
@@ -599,6 +620,30 @@ export class GameClient {
                 this.captureState.isCapturing = false;
             }, 1000);
         }
+    }
+
+    sendDisconnectionBeacon() {        
+        const socketId = this.socketManager?.socket?.id;
+        
+        if (!socketId) {
+            return;
+        }
+
+        if (!this.apiManager) {
+            return;
+        }
+
+        try {
+            const data = JSON.stringify({ IdSocket: socketId });
+            const url = `${this.apiManager.baseURL}/RegistroUsuario/desactivar`;
+
+            if (navigator.sendBeacon) {
+                const sent = navigator.sendBeacon(url, new Blob([data], { type: 'application/json' }));
+            } else {
+                // No hacer fetch aquí porque beforeunload es muy limitado
+            }
+        } catch (error) {
+            console.error('Error enviando beacon de desconexión:', error);}
     }
 
     //  MANEJADORES DE PROXIMIDAD CON FOV
@@ -688,6 +733,10 @@ export class GameClient {
     }
 
     handleJoinGame() {
+
+        if (this.elements.joinGameBtn.disabled) {
+            return;
+        }
         // Verificar que la cámara esté activa
         if (!this.cameraManager.isActive) {
             this.showTemporaryMessage('Primero activa la cámara', 'error');
@@ -713,15 +762,21 @@ export class GameClient {
         this.captureState.lastTapTime = now;
     }
 
-    handleRegistrationSuccess(playerData) {        
+    handleRegistrationSuccess(playerData) {    
+        // alert para debugging
+        alert(`Registro exitoso: ${JSON.stringify(playerData)}`);
+        
         // Guardar datos del jugador
         this.playerRegistrationData = {
             ...playerData,
-            socketId: null, // Se asignará cuando se conecte
+            IdSocket: null, // Se asignará cuando se conecte
             registeredAt: Date.now()
         };
 
-        // 🆕 CONSOLE.LOG REQUERIDO - Datos para el backend
+        // alert playerData guardado para debugging
+        alert(`Datos del jugador guardados: ${JSON.stringify(this.playerRegistrationData)}`);
+
+        // Datos para el backend
         this.progressiveFlowManager.handleRegistrationCompleted(playerData);
     }
 
@@ -737,7 +792,7 @@ export class GameClient {
                 name: registrationData.nombre || registrationData.name,
                 lastName: registrationData.apellido || registrationData.lastName,
                 email: registrationData.email,
-                socketId: null,
+                IdSocket: null,
                 registeredAt: registrationData.timestamp ? new Date(registrationData.timestamp).getTime() : Date.now()
             };
         }
@@ -746,23 +801,43 @@ export class GameClient {
         this.checkiOSPermissions();
     }
 
-    proceedWithGameJoin() {
+    async proceedWithGameJoin() {
+
+        // Prevenir doble click
+        if (this.elements.joinGameBtn.disabled) {
+            return;
+        }
+
         // Deshabilitar botón temporalmente
         this.elements.joinGameBtn.disabled = true;
         this.elements.joinGameBtn.textContent = '⏳ Conectando...';
 
+        // Verificar que el socket esté conectado
+        if (!this.socketManager.isConnected) {
+            this.socketManager.forceReconnect();
+
+            // Esperar un momento para la reconexión
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            if (!this.socketManager.isConnected) {
+                this.elements.joinGameBtn.disabled = false;
+                this.elements.joinGameBtn.textContent = '🎮 Unirse al Juego';
+                this.showTemporaryMessage('Error de conexión. Inténtalo de nuevo.', 'error');
+                return;
+            }
+        }
+
         const registrationData = this.playerRegistrationData || this.progressiveFlowManager.getRegistrationData();
-        
+
         // Obtener nombre completo del jugador
         const playerName = registrationData ? 
-        `${registrationData.name || registrationData.nombre} ${registrationData.lastName || registrationData.apellido}` : 
-        'Jugador AR';
-        
+            `${registrationData.name || registrationData.nombre} ${registrationData.lastName || registrationData.apellido}` : 
+            'Jugador AR';
+
         // Intentar unirse al juego
         const success = this.socketManager.joinGame({
             name: playerName,
             position: this.roomTracker.getPosition(),
-            // 🆕 Incluir datos de registro
             registrationData: registrationData
         });
 
@@ -770,23 +845,74 @@ export class GameClient {
             this.gameState.isJoined = true;
             this.gameState.player.joinedAt = Date.now();
 
-            // 🆕 Asignar socket ID a los datos de registro
+            // Enviar registro con protección contra duplicados
             if (registrationData) {
-                registrationData.socketId = this.socketManager.socket?.id;
+                await this.sendRegistrationSafely(registrationData);
             }
-
+            
             this.elements.joinGameBtn.textContent = '✅ En Juego';
             this.elements.joinGameBtn.disabled = true;
 
+            // Crear botón de finalizar
             setTimeout(() => {
-                this.showTemporaryMessage('¡Gira para encontrar objetos!', 'info');
+                this.createFinishGameButton();
             }, 1000);
+
+            setTimeout(() => {
+                this.showTemporaryMessage('¡Continuemos jugando!', 'info');
+            }, 2000);
 
         } else {
             // Error al unirse
             this.elements.joinGameBtn.disabled = false;
             this.elements.joinGameBtn.textContent = '🎮 Unirse al Juego';
             this.showTemporaryMessage('Error al unirse al juego', 'error');
+        }
+    }
+
+    async sendRegistrationSafely(registrationData) {
+        const now = Date.now();
+        const minDelay = 2000; // 2 segundos mínimo entre registros
+        
+        // Verificar si ya hay un registro en progreso
+        if (this.registrationInProgress) {
+            console.log('⚠️ Registro ya en progreso, saltando...');
+            return;
+        }
+
+        // Verificar si fue muy reciente
+        if (now - this.lastRegistrationTime < minDelay) {
+            console.log('⚠️ Registro muy reciente, saltando...');
+            return;
+        }
+
+        this.registrationInProgress = true;
+        this.lastRegistrationTime = now;
+
+        const currentSocketId = this.socketManager.socket?.id;
+
+        console.log('📤 Enviando registro seguro con socket:', currentSocketId);
+
+        try {
+            await this.apiManager.sendRegistration({
+                Nombre: registrationData.name,
+                Apellido: registrationData.lastName,
+                Email: registrationData.email,
+                IdSocket: currentSocketId || ''
+            });
+
+            console.log('✅ Registro exitoso');
+
+            // Actualizar socket ID local
+            registrationData.IdSocket = currentSocketId;
+
+        } catch (error) {
+            console.error('❌ Error enviando registro:', error);
+        } finally {
+            // 🔧 Liberar lock después de un tiempo
+            setTimeout(() => {
+                this.registrationInProgress = false;
+            }, 1000);
         }
     }
 
@@ -872,54 +998,260 @@ export class GameClient {
         }
     }
 
-    logCaptureEvent(captureData) {
+    async logCaptureEvent(captureData) {
         const registrationData = this.playerRegistrationData || this.progressiveFlowManager.getRegistrationData();
 
         if (!registrationData) {
             return;
         }
 
-        // Encontrar información del objeto capturado
-        const spawnInfo = this.getSpawnInfo(captureData.spawnId);
-
-        // 🆕 CONSOLE.LOG REQUERIDO - Datos para endpoint de captura
-        console.log('🎯 DATOS PARA ENDPOINT CAPTURA:', {
-            jugador: {
-                nombre: registrationData.name || registrationData.nombre,
-                apellido: registrationData.lastName || registrationData.apellido,
-                email: registrationData.email,
-                socketId: registrationData.socketId
+        // 🆕 CONSOLE.LOG REQUERIDO - Estructura exacta para el backend
+        await this.apiManager.sendCapture({
+            IdSocket: captureData.playerId || '',
+            ObjetoQlik: {
+                Id: captureData.objectId || 0,
+                Nombre: captureData.objectName || 'Objeto desconocido',
+                Rareza: captureData.objectRarity || 'common',
+                Valor: captureData.objectPoints || 10,
+                IndicadorId: String(captureData.objectId || 0)
             },
-            objetoCapturado: {
-                id: captureData.spawnId,
-                tipo: captureData.spawnType || spawnInfo.type,
-                emoji: spawnInfo.emoji,
-                rareza: spawnInfo.rarity || 'common'
-            },
-            puntuacionObtenida: {
-                puntosFinales: captureData.pointsEarned,
-                racha: captureData.streak || 0
-            }
+            Puntuacion: captureData.pointsEarned || 0
         });
     }
 
-    getSpawnInfo(spawnId) {
-        // Buscar en spawns actuales
-        let spawn = this.gameState.spawns.find(s => s.id === spawnId);
-        
-        // Si no está en spawns actuales, buscar en visibles
-        if (!spawn) {
-            spawn = this.gameState.visibleSpawns.find(s => s.id === spawnId);
+    createFinishGameButton() {
+        // Solo crear si está en juego y no existe ya
+        if (!this.gameState.isJoined || document.getElementById('finishGameBtn')) {
+            return;
         }
 
-        // Retornar info por defecto si no se encuentra
-        return spawn || {
-            emoji: '❓',
-            type: 'unknown',
-            points: 10,
-            rarity: 'common'
-        };
+        const finishBtn = document.createElement('button');
+        finishBtn.id = 'finishGameBtn';
+        finishBtn.className = 'btn-finish-game';
+        finishBtn.innerHTML = `
+            <span class="finish-icon">🏁</span>
+            <span class="finish-text">Finalizar Partida</span>
+        `;
+
+        finishBtn.addEventListener('click', () => {
+            this.showFinishGameModal();
+        });
+
+        document.body.appendChild(finishBtn);
+
+        // Animar entrada
+        setTimeout(() => {
+            finishBtn.classList.add('show');
+        }, 100);
     }
+
+    // 2️⃣ Modal de confirmación:
+    showFinishGameModal() {
+        // Prevenir múltiples modales
+        if (document.getElementById('finishGameModal')) return;
+
+        const modal = document.createElement('div');
+        modal.id = 'finishGameModal';
+        modal.className = 'finish-game-modal';
+
+        const playerData = this.getRegistrationData();
+        const playerName = playerData ? `${playerData.name} ${playerData.lastName}` : 'Jugador';
+
+        modal.innerHTML = `
+            <div class="finish-modal-content">
+                <div class="finish-modal-header">
+                    <div class="finish-modal-icon">🏆</div>
+                    <h2>¡Partida Completada!</h2>
+                    <p>¿Estás seguro que quieres finalizar?</p>
+                </div>
+
+                <div class="finish-modal-body">
+                    <div class="game-summary">
+                        <div class="summary-item">
+                            <span class="summary-label">Jugador:</span>
+                            <span class="summary-value">${playerName}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Puntos Obtenidos:</span>
+                            <span class="summary-value points-highlight">${this.gameState.player.points}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Objetos Capturados:</span>
+                            <span class="summary-value">${this.gameState.player.captures}</span>
+                        </div>
+                    </div>
+
+                    <div class="finish-notice">
+                        <div class="notice-icon">💾</div>
+                        <p><strong>Tus puntos se guardarán automáticamente.</strong></p>
+                        <p>La próxima vez que juegues comenzarás una nueva partida.</p>
+                    </div>
+                </div>
+
+                <div class="finish-modal-footer">
+                    <button class="btn-cancel" id="cancelFinish">
+                        Seguir Jugando
+                    </button>
+                    <button class="btn-confirm" id="confirmFinish">
+                        <span class="confirm-icon">✅</span>
+                        Finalizar Partida
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Event listeners
+        modal.querySelector('#cancelFinish').addEventListener('click', () => {
+            this.hideFinishGameModal();
+        });
+
+        modal.querySelector('#confirmFinish').addEventListener('click', () => {
+            this.executeFinishGame();
+        });
+
+        // Cerrar con click fuera del modal
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.hideFinishGameModal();
+            }
+        });
+
+        document.body.appendChild(modal);
+
+        // Animar entrada
+        setTimeout(() => {
+            modal.classList.add('show');
+        }, 100);
+    }
+
+    // 3️⃣ Ocultar modal:
+    hideFinishGameModal() {
+        const modal = document.getElementById('finishGameModal');
+        if (modal) {
+            modal.classList.add('hide');
+            setTimeout(() => {
+                modal.remove();
+            }, 300);
+        }
+    }
+
+    // 4️⃣ Ejecutar finalización:
+    async executeFinishGame() {
+        const confirmBtn = document.getElementById('confirmFinish');
+        const originalContent = confirmBtn.innerHTML;
+        
+        try {
+            // Cambiar botón a estado de carga
+            confirmBtn.innerHTML = `
+                <span class="loading-spinner"></span>
+                Finalizando...
+            `;
+            confirmBtn.disabled = true;
+
+            // 1. Enviar desconexión al backend
+            const socketId = this.socketManager?.socket?.id;
+            if (socketId && this.apiManager) {
+                await this.apiManager.sendDisconnection(socketId);
+                console.log('✅ Partida finalizada en backend');
+            }
+
+            // 2. Notificar al servidor (pero no desconectar aún)
+            this.socketManager.send('finish-game', {
+                socketId: socketId,
+                finalStats: {
+                    points: this.gameState.player.points,
+                    captures: this.gameState.player.captures,
+                    bestStreak: this.gameState.player.bestStreak,
+                    playTime: Date.now() - this.gameState.player.joinedAt
+                }
+            });
+
+            // 3. Mostrar mensaje de éxito en el modal
+            this.showFinishSuccess();
+
+            // 4. Limpiar después de un momento SIN desconectar socket
+            setTimeout(() => {
+                this.cleanupGameSession();
+            }, 3000);
+
+        } catch (error) {
+            console.error('Error finalizando partida:', error);
+
+            // Restaurar botón en caso de error
+            confirmBtn.innerHTML = originalContent;
+            confirmBtn.disabled = false;
+
+            this.showTemporaryMessage('Error al finalizar partida. Inténtalo de nuevo.', 'error');
+        }
+    }
+
+    // 5️⃣ Mostrar éxito en el modal:
+    showFinishSuccess() {
+        const modal = document.getElementById('finishGameModal');
+        if (!modal) return;
+
+        modal.querySelector('.finish-modal-content').innerHTML = `
+            <div class="finish-success">
+                <div class="success-icon">🎉</div>
+                <h2>¡Partida Finalizada!</h2>
+                <p>Tus puntos se han guardado correctamente</p>
+                <div class="success-points">
+                    <span class="points-earned">${this.gameState.player.points}</span>
+                    <span class="points-label">puntos obtenidos</span>
+                </div>
+                <p class="success-message">¡Gracias por jugar DataGo!</p>
+            </div>
+        `;
+    }
+
+    // 6️⃣ Limpiar sesión:
+    cleanupGameSession() {
+        // Ocultar modal
+        this.hideFinishGameModal();
+        
+        // Limpiar estado del juego pero mantener datos de registro
+        this.gameState.isJoined = false;
+        this.gameState.spawns = [];
+        this.gameState.visibleSpawns = [];
+        this.gameState.player.points = 0;
+        this.gameState.player.captures = 0;
+        this.gameState.player.streak = 0;
+        this.gameState.player.bestStreak = 0;
+        
+        // Remover botón de finalizar
+        document.getElementById('finishGameBtn')?.remove();
+        
+        // Limpiar AR overlay
+        if (this.elements.arOverlay) {
+            this.elements.arOverlay.innerHTML = '';
+        }
+
+        // Resetear botones
+        if (this.elements.joinGameBtn) {
+            this.elements.joinGameBtn.disabled = false;
+            this.elements.joinGameBtn.textContent = '🎮 Unirse al Juego';
+        }
+
+        // 🆕 Habilitar botón de cámara si se había deshabilitado
+        if (this.elements.startCameraBtn) {
+            this.elements.startCameraBtn.disabled = false;
+            this.elements.startCameraBtn.textContent = '📱 Activar Cámara';
+        }
+
+        // Actualizar UI
+        this.updateCleanUI();
+
+        // 🆕 Reconectar socket limpiamente si se perdió la conexión
+        setTimeout(() => {
+            if (!this.socketManager.isConnected) {
+                this.socketManager.forceReconnect();
+            }
+        }, 1000);
+
+        // Mensaje final
+        this.showTemporaryMessage('¡Partida finalizada! Puedes iniciar una nueva cuando quieras.', 'success');
+    }
+
 
     showCaptureSuccess(data) {
         const feedback = document.createElement('div');
@@ -929,12 +1261,13 @@ export class GameClient {
         if (data.multiplier > 1) {
             bonusText = `<div class="capture-bonus">${data.multiplier.toFixed(1)}x multiplier</div>`;
         }
-        
-        const emoji = '🎯';
-        
+
+        const objectName = data.objectName || 'Objeto';
+
         feedback.innerHTML = `
-            <div class="capture-emoji">${emoji}</div>
+            <div class="capture-emoji">🎯</div>
             <div class="capture-points">+${data.pointsEarned}</div>
+            <div class="capture-object">${objectName}</div>
             ${bonusText}
         `;
         

@@ -1011,3 +1011,353 @@ button[onclick*="localStorage.clear"] {
         height: 15px;
     }
 }
+
+.btn-finish-game {
+    position: fixed;
+    bottom: 200px;
+    right: 20px;
+    background: linear-gradient(135deg, #FF6B35, #F7931E);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+    transform: translateX(200px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    border: 2px solid rgba(255, 107, 53, 0.5);
+}
+
+.btn-finish-game.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.btn-finish-game:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4);
+}
+
+.btn-finish-game:active {
+    transform: translateY(0);
+}
+
+.finish-icon {
+    font-size: 16px;
+}
+
+.finish-text {
+    white-space: nowrap;
+}
+
+/* Modal de finalizar partida */
+.finish-game-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.finish-game-modal.show {
+    opacity: 1;
+}
+
+.finish-game-modal.hide {
+    opacity: 0;
+}
+
+.finish-modal-content {
+    background: white;
+    border-radius: 20px;
+    max-width: 450px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.finish-game-modal.show .finish-modal-content {
+    transform: scale(1);
+}
+
+/* Header del modal */
+.finish-modal-header {
+    text-align: center;
+    padding: 30px 30px 20px 30px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.finish-modal-icon {
+    font-size: 4rem;
+    margin-bottom: 15px;
+}
+
+.finish-modal-header h2 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.finish-modal-header p {
+    margin: 0;
+    color: #666;
+    font-size: 16px;
+}
+
+/* Cuerpo del modal */
+.finish-modal-body {
+    padding: 25px 30px;
+}
+
+.game-summary {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.summary-item:last-child {
+    margin-bottom: 0;
+}
+
+.summary-label {
+    color: #666;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.summary-value {
+    color: #333;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.points-highlight {
+    color: #007AFF;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+/* Aviso */
+.finish-notice {
+    text-align: center;
+    background: #e8f4fd;
+    border: 2px solid #007AFF;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.notice-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.finish-notice p {
+    margin: 8px 0;
+    color: #333;
+    line-height: 1.4;
+}
+
+.finish-notice strong {
+    color: #007AFF;
+}
+
+/* Footer del modal */
+.finish-modal-footer {
+    padding: 20px 30px 30px 30px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.btn-cancel, .btn-confirm {
+    flex: 1;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-cancel {
+    background: #f1f1f1;
+    color: #666;
+    border: 2px solid #ddd;
+}
+
+.btn-cancel:hover {
+    background: #e8e8e8;
+    border-color: #ccc;
+}
+
+.btn-confirm {
+    background: linear-gradient(135deg, #30D158, #28B946);
+    color: white;
+    border: 2px solid #30D158;
+}
+
+.btn-confirm:hover:not(:disabled) {
+    background: linear-gradient(135deg, #28B946, #20A03A);
+    transform: translateY(-1px);
+}
+
+.btn-confirm:disabled {
+    background: #ccc;
+    border-color: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.confirm-icon {
+    font-size: 16px;
+}
+
+/* Pantalla de éxito */
+.finish-success {
+    text-align: center;
+    padding: 40px 30px;
+}
+
+.success-icon {
+    font-size: 5rem;
+    margin-bottom: 20px;
+    animation: successBounce 0.8s ease-out;
+}
+
+.finish-success h2 {
+    margin: 0 0 15px 0;
+    color: #30D158;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.finish-success p {
+    margin: 10px 0;
+    color: #666;
+    font-size: 16px;
+}
+
+.success-points {
+    background: linear-gradient(135deg, #30D158, #28B946);
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 25px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.points-earned {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.points-label {
+    font-size: 14px;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.success-message {
+    color: #333 !important;
+    font-size: 18px !important;
+    font-weight: 600;
+    margin-top: 20px !important;
+}
+
+/* Spinner de carga */
+.loading-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes successBounce {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .btn-finish-game {
+        bottom: 180px;
+        right: 15px;
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+    
+    .finish-modal-content {
+        margin: 10px;
+        max-width: none;
+    }
+    
+    .finish-modal-header,
+    .finish-modal-body,
+    .finish-modal-footer {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+    
+    .finish-modal-header h2 {
+        font-size: 24px;
+    }
+    
+    .finish-modal-footer {
+        flex-direction: column;
+    }
+    
+    .success-icon {
+        font-size: 4rem;
+    }
+    
+    .points-earned {
+        font-size: 2rem;
+    }
+}

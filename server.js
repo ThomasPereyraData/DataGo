@@ -4,6 +4,8 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import gameObjects from './QlikObjects.json' assert { type: 'json' };
+import fetch from 'node-fetch';
 
 // Obtener __dirname en ES6 modules
 const __filename = fileURLToPath(import.meta.url);
@@ -25,6 +27,26 @@ app.use(express.static(join(__dirname, 'public'), {
     res.setHeader('Feature-Policy', 'camera *');
   }
 }));
+
+async function sendDisconnection(socketId) {
+    try {
+        const response = await fetch('https://api.dataiq.com.ar/datagoapi/RegistroUsuario/desactivar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ IdSocket: socketId })
+        });
+        
+        if (response.ok) {
+            console.log(`✅ Desconexión enviada para socket: ${socketId}`);
+        } else {
+            console.error(`❌ Error enviando desconexión: ${response.status}`);
+        }
+    } catch (error) {
+        console.error('❌ Error enviando desconexión:', error);
+    }
+}
 
 // 🏟️ CONFIGURACIÓN SPAWNS POR SALA
 const ROOM_CONFIG = {
@@ -49,32 +71,18 @@ const PROXIMITY_CONFIG = {
 };
 
 // Tipos de objetos
-const SPAWN_TYPES = {
-  common: {
-    images: ['common/LogoData.png','common/Bob.png','common/Dora.png'],
-    points: 5,
-    probability: 0.5,
-    despawnTime: 25000,
-    captureRange: 2.2,
-    color: '#00ff88'
-  },
-  rare: {
-    images: ['rare/QlikLogo.png'],
-    points: 10,
-    probability: 0.10,
-    despawnTime: 20000,
-    captureRange: 2.0,
-    color: '#ffd700'
-  },
-  epic: {
-    images: ['common/IQU.png'],
-    points: 25,
-    probability: 0.05,
-    captureRange: 1.8,
-    despawnTime: 15000,
-    color: '#ff6b35'
+const SPAWN_TYPES = {};
+
+// Construir SPAWN_TYPES desde el JSON para mantener compatibilidad
+gameObjects.objects.forEach(obj => {
+  if (!SPAWN_TYPES[obj.rarity]) {
+    SPAWN_TYPES[obj.rarity] = {
+      objects: [],
+      ...gameObjects.rarities[obj.rarity]
+    };
   }
-};
+  SPAWN_TYPES[obj.rarity].objects.push(obj);
+});
 
 // Estado del juego
 let gameState = {
@@ -241,8 +249,8 @@ function generateRoomSpawns() {
  * Crear spawn en zona específica
  */
 function createSpawnInZone(zoneId) {
-  const spawnType = determineSpawnType();
-  const spawnConfig = SPAWN_TYPES[spawnType];
+  const selectedObject  = determineSpawnType();
+  const rarityConfig = gameObjects.rarities[selectedObject.rarity];
   
   // Intentar hasta 5 veces encontrar posición libre
   let position;
@@ -269,16 +277,19 @@ function createSpawnInZone(zoneId) {
   
   return {
     id: gameState.nextSpawnId++,
-    type: spawnType,
+    objectId: selectedObject.id,           // 🆕 ID del objeto desde JSON
+    name: selectedObject.name,             // 🆕 Nombre del objeto
+    type: selectedObject.rarity,           // Mantener compatibilidad
     position: position,
     zone: zoneId,
     createdAt: Date.now(),
-    image: spawnConfig.images[Math.floor(Math.random() * spawnConfig.images.length)],
-    points: spawnConfig.points,
-    captureRange: spawnConfig.captureRange,
-    despawnTime: spawnConfig.despawnTime,
-    color: spawnConfig.color,
-    rarity: spawnType,
+    image: selectedObject.image,           // 🆕 Imagen específica del objeto
+    points: selectedObject.points,         // 🆕 Puntos específicos del objeto
+    captureRange: rarityConfig.captureRange,
+    despawnTime: rarityConfig.despawnTime,
+    color: rarityConfig.color,
+    rarity: selectedObject.rarity,
+    description: selectedObject.description, // 🆕 Descripción del objeto
     visibleTo: []
   };
 }
@@ -286,9 +297,7 @@ function createSpawnInZone(zoneId) {
 /**
  * Generar spawns iniciales para llenar la sala
  */
-function generateInitialSpawns() {
-  console.log('Generando spawns iniciales para la sala...');
-  
+function generateInitialSpawns() {  
   // Generar spawns para cada zona
   for (let zoneId = 0; zoneId < ROOM_CONFIG.zones.cols * ROOM_CONFIG.zones.rows; zoneId++) {
     for (let i = 0; i < ROOM_CONFIG.zones.spawnsPerZone; i++) {
@@ -304,9 +313,7 @@ function generateInitialSpawns() {
         }, spawn.despawnTime);
       }
     }
-  }
-  
-  console.log(`✅ ${gameState.spawns.length} spawns iniciales generados`);
+  }  
 }
 
 // Socket.IO event handlers
@@ -427,6 +434,26 @@ io.on('connection', (socket) => {
       });
     }
   });
+
+  socket.on('finish-game', async (data) => {
+    console.log(`🏁 Usuario ${socket.id} finalizó la partida voluntariamente`);
+    console.log('Stats finales:', data.finalStats);
+    
+    const player = gameState.players[socket.id];
+    await sendDisconnection(socket.id);
+    
+    if (player) {
+        console.log(`🎉 ${player.name} completó la partida con ${data.finalStats.points} puntos`);
+        
+        // Limpiar spawns
+        gameState.spawns.forEach(spawn => {
+            spawn.visibleTo = spawn.visibleTo.filter(id => id !== socket.id);
+        });
+        
+        // Limpiar jugador
+        delete gameState.players[socket.id];
+    }
+  });
 });
 
 // FUNCIONES AUXILIARES
@@ -443,7 +470,7 @@ function checkProximityForPlayer(playerId) {
       spawn.visibleTo.push(playerId);
       player.visibleSpawns.push(spawn.id);
       
-      console.log(`✅ Spawn ${spawn.id} (${spawn.emoji}) zona ${spawn.zone} visible para ${player.name} a ${distance.toFixed(1)}m`);
+      console.log(`✅ Spawn ${spawn.id} (${spawn.name}) zona ${spawn.zone} visible para ${player.name} a ${distance.toFixed(1)}m`);
       
       io.to(playerId).emit('spawn-discovered', {
         spawn: spawn,
@@ -495,7 +522,7 @@ function handleSuccessfulCapture(playerId, spawn) {
   removeSpawn(spawn.id);
   gameState.gameStats.totalCaptures += 1;
   
-  console.log(`✅ ${player.name} capturó ${spawn.emoji} de zona ${spawn.zone}! +${finalPoints} pts`);
+  console.log(`✅ ${player.name} capturó ${spawn.name} de zona ${spawn.zone}! +${finalPoints} pts`);
   
   io.emit('spawn-captured', {
     spawnId: spawn.id,
@@ -506,7 +533,14 @@ function handleSuccessfulCapture(playerId, spawn) {
     multiplier: player.multiplier,
     streak: player.streak,
     spawnType: spawn.type,
-    position: spawn.position
+    position: spawn.position,
+    // 🆕 DATOS DEL OBJETO ESPECÍFICO
+    objectId: spawn.objectId,
+    objectName: spawn.name,
+    objectPoints: spawn.points,
+    objectRarity: spawn.rarity,
+    objectDescription: spawn.description || '',
+    objectImage: spawn.image
   });
   
   // 🆕 Generar nuevo spawn en cualquier zona que lo necesite
@@ -543,10 +577,22 @@ function calculateDistance(pos1, pos2) {
 
 function determineSpawnType() {
   const rand = Math.random();
+  let cumulativeProbability = 0;
   
-  if (rand < SPAWN_TYPES.epic.probability) return 'epic';
-  if (rand < SPAWN_TYPES.epic.probability + SPAWN_TYPES.rare.probability) return 'rare';
-  return 'common';
+  // Iterar por las rarezas según probabilidad
+  for (const [rarity, config] of Object.entries(gameObjects.rarities)) {
+    cumulativeProbability += config.probability;
+    if (rand < cumulativeProbability) {
+      // Seleccionar objeto aleatorio de esa rareza
+      const objectsOfRarity = SPAWN_TYPES[rarity].objects;
+      const randomObject = objectsOfRarity[Math.floor(Math.random() * objectsOfRarity.length)];
+      return randomObject;
+    }
+  }
+  
+  // Fallback a common si algo falla
+  const commonObjects = SPAWN_TYPES.common.objects;
+  return commonObjects[Math.floor(Math.random() * commonObjects.length)];
 }
 
 // INICIALIZACIÓN

@@ -203,22 +203,12 @@ export class ProgressiveFlowManager {
         
         // Guardar en localStorage
         const storageData = {
-            nombre: registrationData.name,
-            apellido: registrationData.lastName,
+            name: registrationData.name,
+            lastName: registrationData.lastName,
             email: registrationData.email,
-            timestamp: new Date().toISOString()
         };
         
         localStorage.setItem('datago-registro', JSON.stringify(storageData));
-        
-        // Console.log para backend
-        console.log('🎮 REGISTRO DE USUARIO:', {
-            nombre: registrationData.name,
-            apellido: registrationData.lastName,
-            email: registrationData.email,
-            puntos: 0,
-            timestamp: new Date().toISOString()
-        });
         
         // Ocultar botón de registro si está visible
         const registerBtn = document.getElementById('registerBtn');

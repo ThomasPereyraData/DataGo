@@ -47,16 +47,15 @@ export class SocketManager {
             this.reconnectAttempts = 0;
             
             this.messageManager?.showConnectionStatus(true, 'Conectado');
-            
-            this.emit('socket-connected', { socketId: this.socket.id });
+            this.emit('socket-connected', { IdSocket: this.socket.id });
         });
 
         // Desconexión
-        this.socket.on('disconnect', (reason) => {
+        this.socket.on('disconnect', async (reason) => {
+
             this.isConnected = false;
-            
-            this.messageManager?.showConnectionStatus(false, 'Desconectado');
-            
+            await this.handleDisconnection();             
+            this.messageManager?.showConnectionStatus(false, 'Desconectado');     
             this.emit('socket-disconnected', { reason });
         });
 
@@ -175,6 +174,30 @@ export class SocketManager {
         });
     }
 
+    async handleDisconnection() {
+
+        if (!this.socket?.id) {
+            console.log('❌ NO HAY SOCKET ID - SALIENDO');
+            return;
+        }        
+        try {            
+            const gameClient = window.gameClient || window.dataGoApp?.gameClient;
+            
+            if (!gameClient) {
+                return;
+            }
+
+            if (!gameClient.apiManager) {
+                return;
+            }
+
+            await gameClient.apiManager.sendDisconnection(this.socket.id);
+        
+        } catch (error) {
+            console.error('❌ Error enviando desconexión:', error);
+        }
+    }
+
     /**
      * Registrar handler para un evento
      */
@@ -275,42 +298,16 @@ export class SocketManager {
         return this.send('attempt-capture', data);
     }
 
-    /**
-     * Enviar heartbeat (mantener conexión viva)
-     */
-    sendHeartbeat() {
-        return this.send('heartbeat', { timestamp: Date.now() });
-    }
-
-    /**
-     * Solicitar estado actual del juego
-     */
-    requestGameState() {
-        return this.send('request-game-state');
-    }
-
     // Métodos de utilidad
 
     /**
      * Forzar reconexión
      */
     forceReconnect() {
-        if (this.socket) {
+            if (this.socket) {
             this.socket.disconnect();
             this.socket.connect();
         }
-    }
-
-    /**
-     * Obtener estado de conexión
-     */
-    getConnectionStatus() {
-        return {
-            connected: this.isConnected,
-            socketId: this.socket?.id || null,
-            reconnectAttempts: this.reconnectAttempts,
-            transport: this.socket?.io?.engine?.transport?.name || null
-        };
     }
 
     /**

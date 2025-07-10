@@ -178,18 +178,6 @@ export class RegistrationManager {
         this.setSubmittingState(true);
         
         try {
-            // 🆕 CONSOLE.LOG REQUERIDO
-            console.log('🎮 REGISTRO DE USUARIO:', {
-                nombre: formData.name,
-                apellido: formData.lastName,
-                email: formData.email,
-                puntos: 0,
-                timestamp: new Date().toISOString()
-            });
-            
-            // Simular delay
-            await Utils.wait(800);
-            
             // Guardar datos
             this.state.playerData = formData;            
             this.messageManager?.success('¡Registro exitoso! Iniciando juego...');

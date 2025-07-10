@@ -1,6 +1,6 @@
 //sw.js
-const CACHE_NAME = 'datago-v1.0.1';
-const STATIC_CACHE = 'datago-static-v1.0.1';
+const CACHE_NAME = 'datago-v1.0.2';
+const STATIC_CACHE = 'datago-static-v1.0.2';
 
 // Archivos que se cachean inmediatamente
 const STATIC_ASSETS = [
@@ -15,20 +15,20 @@ const STATIC_ASSETS = [
 ];
 
 // Archivos que se cachean bajo demanda
-const DYNAMIC_CACHE = 'datago-dynamic-v1.0.1';
+const DYNAMIC_CACHE = 'datago-dynamic-v1.0.2';
 
 // Instalación del Service Worker
 self.addEventListener('install', (event) => {
-  console.log('🚀 Service Worker: Instalando...');
+  // console.log('🚀 Service Worker: Instalando...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then((cache) => {
-        console.log('📦 Service Worker: Cacheando archivos estáticos');
+        // console.log('📦 Service Worker: Cacheando archivos estáticos');
         return cache.addAll(STATIC_ASSETS);
       })
       .then(() => {
-        console.log('✅ Service Worker: Instalación completa');
+        // console.log('✅ Service Worker: Instalación completa');
         return self.skipWaiting();
       })
       .catch((error) => {
@@ -39,7 +39,6 @@ self.addEventListener('install', (event) => {
 
 // Activación del Service Worker
 self.addEventListener('activate', (event) => {
-  console.log('🔄 Service Worker: Activando...');
   
   event.waitUntil(
     caches.keys()
@@ -48,14 +47,12 @@ self.addEventListener('activate', (event) => {
           cacheNames.map((cacheName) => {
             // Eliminar caches antiguos
             if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
-              console.log('🗑️ Service Worker: Eliminando cache antiguo:', cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       })
       .then(() => {
-        console.log('✅ Service Worker: Activación completa');
         return self.clients.claim();
       })
   );
@@ -87,7 +84,6 @@ self.addEventListener('fetch', (event) => {
             requestUrl.pathname.includes('.jpg')) {
           
           if (cachedResponse) {
-            console.log('📦 Cache hit:', requestUrl.pathname);
             return cachedResponse;
           }
         }
@@ -108,7 +104,6 @@ self.addEventListener('fetch', (event) => {
           .catch(() => {
             // Fallback al cache si la red falla
             if (cachedResponse) {
-              console.log('🔄 Fallback al cache:', requestUrl.pathname);
               return cachedResponse;
             }
             
@@ -178,12 +173,10 @@ self.addEventListener('message', (event) => {
 
 // Sincronización en background (para cuando vuelva la conexión)
 self.addEventListener('sync', (event) => {
-  console.log('🔄 Background Sync:', event.tag);
   
   if (event.tag === 'background-sync') {
     event.waitUntil(
       // Aquí podrías sincronizar datos pendientes
-      console.log('📡 Sincronizando datos...')
     );
   }
 });

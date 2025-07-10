@@ -558,7 +558,7 @@ export class GameClient {
 
         // chequeo que el socketManager tenga sus listeners
         if (this.socketManager) {
-            console.log('🔌 Verificando socketManager listeners...');
+            console.log('Verificando socketManager listeners...');
             // Esto se hace en socketManager, pero verificamos que exista
         }
     }
@@ -869,13 +869,11 @@ export class GameClient {
         
         // Verificar si ya hay un registro en progreso
         if (this.registrationInProgress) {
-            console.log('⚠️ Registro ya en progreso, saltando...');
             return;
         }
 
         // Verificar si fue muy reciente
         if (now - this.lastRegistrationTime < minDelay) {
-            console.log('⚠️ Registro muy reciente, saltando...');
             return;
         }
 
@@ -884,8 +882,6 @@ export class GameClient {
 
         const currentSocketId = this.socketManager.socket?.id;
 
-        console.log('📤 Enviando registro seguro con socket:', currentSocketId);
-
         try {
             await this.apiManager.sendRegistration({
                 Nombre: registrationData.name,
@@ -893,8 +889,6 @@ export class GameClient {
                 Email: registrationData.email,
                 IdSocket: currentSocketId || ''
             });
-
-            console.log('✅ Registro exitoso');
 
             // Actualizar socket ID local
             registrationData.IdSocket = currentSocketId;
@@ -979,7 +973,7 @@ export class GameClient {
             this.gameState.player.streak = data.streak || 0;
             this.gameState.player.captures++;
 
-            //CONSOLE.LOG REQUERIDO - Datos para endpoint de captura
+            //Datos para endpoint de captura
             this.logCaptureEvent(data);
             
             this.updateCleanUI();
@@ -998,7 +992,7 @@ export class GameClient {
             return;
         }
 
-        // 🆕 CONSOLE.LOG REQUERIDO - Estructura exacta para el backend
+        //Estructura exacta para el backend
         await this.apiManager.sendCapture({
             IdSocket: captureData.playerId || '',
             ObjetoQlik: {
@@ -1145,7 +1139,6 @@ export class GameClient {
             const socketId = this.socketManager?.socket?.id;
             if (socketId && this.apiManager) {
                 await this.apiManager.sendDisconnection(socketId);
-                console.log('✅ Partida finalizada en backend');
             }
 
             // 2. Notificar al servidor (pero no desconectar aún)

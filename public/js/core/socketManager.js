@@ -177,7 +177,6 @@ export class SocketManager {
     async handleDisconnection() {
 
         if (!this.socket?.id) {
-            console.log('❌ NO HAY SOCKET ID - SALIENDO');
             return;
         }        
         try {            

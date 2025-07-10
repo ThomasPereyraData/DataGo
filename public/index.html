@@ -14,7 +14,7 @@
     <meta name="description" content="Juego de realidad aumentada para capturar objetos en tiempo real">
 
     <!-- PWA Icons -->
-    <link rel="manifest" href="/manifest.json?v=10">
+    <link rel="manifest" href="/manifest.json?v=12">
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-apple-touch.png">
@@ -35,19 +35,12 @@
                 <div class="game-preview">
                     <div class="preview-icon">📱🎯</div>
                     <h2>¡Instala la App!</h2>
-                    <p>Para la mejor experiencia, instala DataGo como aplicación en tu dispositivo</p>
                 </div>
 
-                <!-- NUEVO: Botón para ver instrucciones -->
                 <button id="showPWAInstructionsBtn" class="btn-primary welcome-btn">
                     📱 Ver Instrucciones de Instalación
                 </button>
 
-                <!-- COMENTADO: Botón de registro
-                <button id="startRegistrationBtn" class="btn-primary welcome-btn">
-                    📝 Comenzar - Registrarse
-                </button>
-                -->
             </div>
         </div>
     </div>
@@ -67,7 +60,6 @@
             <div class="game-ui">
                 <!-- Botones principales -->
                 <div class="controls">
-                    <!-- NUEVO: Botón registrarse (solo visible en PWA sin registro) -->
                     <button id="registerBtn" class="btn-primary" style="display: none;">
                         📝 Registrarse
                     </button>
@@ -146,14 +138,6 @@
             </form>
         </div>
     </div>
-
-    <!-- BOTÓN TEMPORAL PARA LIMPIAR DATOS
-    <button onclick="localStorage.clear(); sessionStorage.clear(); location.reload();" 
-            style="position: fixed; top: 10px; right: 10px; z-index: 99999; 
-                   background: red; color: white; padding: 5px 8px; border: none; 
-                   border-radius: 3px; font-size: 10px; opacity: 0.7;">
-        🧹
-    </button> -->
     
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>

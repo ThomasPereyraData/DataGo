@@ -22,12 +22,7 @@ export class ApiManager {
             });
             
             if (response.ok) {
-                const result = await response.json();
-                
-                if (this.messageManager) {
-                    this.messageManager.success('Captura registrada');
-                }
-                
+                const result = await response.json();    
                 return result;
             } else {
                 const errorText = await response.text().catch(() => 'No response body');
@@ -96,11 +91,9 @@ export class ApiManager {
 
             if (response.ok) {
                 const result = await response.json();
-                console.log('Success result:', result);
                 return result;
             } else {
                 const errorText = await response.text().catch(() => 'No response body');
-                console.log('Error response:', response.status, errorText);
                 throw new Error(`Error ${response.status}: ${response.statusText}`);
             }
 

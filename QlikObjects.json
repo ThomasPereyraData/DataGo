@@ -30,19 +30,19 @@
     },
     {
       "id": 2,
-      "name": "Bob Consultor",
-      "image": "common/Bob.png",
+      "name": "IQU Fiesta",
+      "image": "common/IQU_fiesta.png",
       "points": 5,
       "rarity": "common",
-      "description": "El personaje amarillo más querido"
+      "description": "IQU en modo fiesta"
     },
     {
       "id": 3,
-      "name": "Dora la Consultora",
-      "image": "common/Dora.png",
+      "name": "IQU Saluda",
+      "image": "common/IQU_saluda.png",
       "points": 5,
       "rarity": "common",
-      "description": "ConsulDora de DataIQ"
+      "description": "IQU saludando"
     },
     {
       "id": 4,
@@ -54,8 +54,8 @@
     },
     {
       "id": 5,
-      "name": "IQU",
-      "image": "epic/IQU.png",
+      "name": "IQU Tirado",
+      "image": "epic/IQU_tirado.png",
       "points": 25,
       "rarity": "epic",
       "description": "IQU"

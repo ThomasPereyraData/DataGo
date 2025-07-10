@@ -41,12 +41,6 @@ async function sendDisconnection(socketId) {
             },
             body: JSON.stringify({ IdSocket: socketId })
         });
-        
-        if (response.ok) {
-            console.log(`✅ Desconexión enviada para socket: ${socketId}`);
-        } else {
-            console.error(`❌ Error enviando desconexión: ${response.status}`);
-        }
     } catch (error) {
         console.error('❌ Error enviando desconexión:', error);
     }
@@ -209,12 +203,9 @@ function findZoneNeedingSpawns() {
 /**
  * Generar spawns para mantener distribución equitativa
  */
-function generateRoomSpawns() {
-  console.log('🎯 Generando spawns para la sala...');
-  
+function generateRoomSpawns() {  
   // Verificar si necesitamos generar spawns
   if (gameState.spawns.length >= ROOM_CONFIG.maxSimultaneousSpawns) {
-    console.log(`⏸️ Máximo de spawns alcanzado (${gameState.spawns.length}/${ROOM_CONFIG.maxSimultaneousSpawns})`);
     return;
   }
   
@@ -222,7 +213,6 @@ function generateRoomSpawns() {
   const needyZone = findZoneNeedingSpawns();
   
   if (needyZone === null) {
-    console.log('✅ Todas las zonas tienen suficientes spawns');
     return;
   }
   
@@ -275,25 +265,24 @@ function createSpawnInZone(zoneId) {
   } while (attempts < maxAttempts);
   
   if (attempts >= maxAttempts) {
-    console.log(`⚠️ No se pudo encontrar posición libre en zona ${zoneId} después de ${maxAttempts} intentos`);
     return null;
   }
   
   return {
     id: gameState.nextSpawnId++,
-    objectId: selectedObject.id,           // 🆕 ID del objeto desde JSON
-    name: selectedObject.name,             // 🆕 Nombre del objeto
+    objectId: selectedObject.id,           // ID del objeto desde JSON
+    name: selectedObject.name,             // Nombre del objeto
     type: selectedObject.rarity,           // Mantener compatibilidad
     position: position,
     zone: zoneId,
     createdAt: Date.now(),
-    image: selectedObject.image,           // 🆕 Imagen específica del objeto
-    points: selectedObject.points,         // 🆕 Puntos específicos del objeto
+    image: selectedObject.image,           // Imagen específica del objeto
+    points: selectedObject.points,         // Puntos específicos del objeto
     captureRange: rarityConfig.captureRange,
     despawnTime: rarityConfig.despawnTime,
     color: rarityConfig.color,
     rarity: selectedObject.rarity,
-    description: selectedObject.description, // 🆕 Descripción del objeto
+    description: selectedObject.description, // Descripción del objeto
     visibleTo: []
   };
 }
@@ -408,9 +397,7 @@ io.on('connection', (socket) => {
     
     const distance = calculateDistance(player.position, targetSpawn.position);
     const captureRange = targetSpawn.captureRange || 2.0;
-    
-    console.log(`🎯 ${player.name} intenta capturar ${targetSpawn.type} (zona ${targetSpawn.zone}). Distancia: ${distance.toFixed(2)}m`);
-    
+        
     if (distance <= captureRange) {
       handleSuccessfulCapture(socket.id, targetSpawn);
     } else {
@@ -441,7 +428,6 @@ io.on('connection', (socket) => {
 
   socket.on('finish-game', async (data) => {
     console.log(`🏁 Usuario ${socket.id} finalizó la partida voluntariamente`);
-    console.log('Stats finales:', data.finalStats);
     
     const player = gameState.players[socket.id];
     await sendDisconnection(socket.id);
@@ -473,9 +459,7 @@ function checkProximityForPlayer(playerId) {
     if (distance <= PROXIMITY_CONFIG.discoveryRange && !wasVisible) {
       spawn.visibleTo.push(playerId);
       player.visibleSpawns.push(spawn.id);
-      
-      console.log(`✅ Spawn ${spawn.id} (${spawn.name}) zona ${spawn.zone} visible para ${player.name} a ${distance.toFixed(1)}m`);
-      
+            
       io.to(playerId).emit('spawn-discovered', {
         spawn: spawn,
         distance: distance
@@ -484,9 +468,7 @@ function checkProximityForPlayer(playerId) {
     } else if (distance >= PROXIMITY_CONFIG.hideRange && wasVisible) {
       spawn.visibleTo = spawn.visibleTo.filter(id => id !== playerId);
       player.visibleSpawns = player.visibleSpawns.filter(id => id !== spawn.id);
-      
-      console.log(`❌ Spawn ${spawn.id} oculto para ${player.name} a ${distance.toFixed(1)}m`);
-      
+            
       io.to(playerId).emit('spawn-hidden', {
         spawnId: spawn.id,
         distance: distance
@@ -569,7 +551,6 @@ function removeSpawn(spawnId) {
   });
   
   gameState.spawns.splice(spawnIndex, 1);
-  console.log(`🗑️ Spawn ${spawnId} removido de zona ${spawn.zone}`);
 }
 
 function calculateDistance(pos1, pos2) {
@@ -601,8 +582,6 @@ function determineSpawnType() {
 
 // INICIALIZACIÓN
 
-console.log('🚀 Iniciando sistema de spawns por sala...');
-
 // Generar spawns iniciales
 generateInitialSpawns();
 
@@ -621,9 +600,6 @@ const proximityInterval = setInterval(() => {
 // 🆕 Log de estadísticas periódico
 const statsInterval = setInterval(() => {
   updateZoneStats();
-  console.log('📊 Estadísticas de zona:', Object.keys(gameState.zoneStats).map(zoneId => 
-    `Zona ${zoneId}: ${gameState.zoneStats[zoneId].spawns} spawns`
-  ).join(', '));
 }, 15000);
 
 // Graceful shutdown

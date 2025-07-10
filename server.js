@@ -58,8 +58,8 @@ const ROOM_CONFIG = {
   },
   spawnInterval: 6000,    // Generar spawns cada 6 segundos
   despawnTime: 25000,     // Spawns duran 25 segundos
-  maxSimultaneousSpawns: 6, // Total máximo en toda la sala
-  minSpawnsActive: 3      // Mínimo de spawns activos siempre
+  maxSimultaneousSpawns: 4, // Total máximo en toda la sala
+  minSpawnsActive: 2      // Mínimo de spawns activos siempre
 };
 
 const PROXIMITY_CONFIG = {

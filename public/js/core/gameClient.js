@@ -297,6 +297,14 @@ export class GameClient {
      */
     handleThrowHit(hitData) {
         const { target, accuracy, multiplier, screenDistance, physicalDistance } = hitData;
+
+        const element = document.getElementById(`spawn-${target.id}`);
+        const actualName = element?.dataset.spawnName || 'desconocido';
+
+        if (actualName !== target.name) {
+            console.warn(`⚠️ Desincronización: esperaba "${target.name}", DOM muestra "${actualName}"`);
+            this.showTemporaryMessage(`Capturando ${actualName}`, 'info');
+        }
         
         
         this.socketManager.attemptCapture({
@@ -356,18 +364,90 @@ export class GameClient {
     }
 
     createCleanPointsDisplay() {
-        let pointsDisplay = document.getElementById('cleanPointsDisplay');
-        if (!pointsDisplay) {
-            pointsDisplay = document.createElement('div');
-            pointsDisplay.id = 'cleanPointsDisplay';
-            pointsDisplay.className = 'clean-ui-element';
-            document.body.appendChild(pointsDisplay);
+        let playerDisplay = document.getElementById('cleanPlayerDisplay');
+        if (!playerDisplay) {
+            playerDisplay = document.createElement('div');
+            playerDisplay.id = 'cleanPlayerDisplay';
+            playerDisplay.className = 'clean-player-display';
+            document.body.appendChild(playerDisplay);
         }
+
+        // 🆕 MEJORA: Actualizar con datos correctos siempre
+        this.updatePlayerDisplayInfo();
+    }
+
+    updatePlayerDisplayInfo() {
+        const playerDisplay = document.getElementById('cleanPlayerDisplay');
+        if (!playerDisplay) return;
         
-        pointsDisplay.innerHTML = `
-            <div class="points-value">0</div>
-            <div class="points-label">puntos</div>
+        // Obtener datos del jugador con múltiples fuentes
+        const playerData = this.getRegistrationData() || 
+                          this.progressiveFlowManager?.getRegistrationData() || 
+                          this.playerRegistrationData;
+        
+        let playerName = 'Jugador AR'; // Fallback default
+        
+        if (playerData) {
+            // Intentar diferentes formatos de nombre
+            if (playerData.name && playerData.lastName) {
+                playerName = `${playerData.name} ${playerData.lastName}`;
+            } else if (playerData.nombre && playerData.apellido) {
+                playerName = `${playerData.nombre} ${playerData.apellido}`;
+            } else if (playerData.name) {
+                playerName = playerData.name;
+            } else if (playerData.nombre) {
+                playerName = playerData.nombre;
+            }
+        }
+
+        console.log(`🏷️ Actualizando display con nombre: "${playerName}"`);
+
+        // Generar iniciales para el avatar
+        const initials = this.generateInitials(playerName);
+
+        playerDisplay.innerHTML = `
+            <div class="player-header">
+                <div class="player-avatar">${initials}</div>
+                <div class="player-info">
+                    <div class="player-name">${playerName}</div>
+                    <div class="player-status">• En juego</div>
+                </div>
+            </div>
+
+            <div class="points-section">
+                <div class="points-main">
+                    <div class="points-value">${this.gameState.player.points || 0}</div>
+                    <div class="points-label">puntos</div>
+                </div>
+                <div class="stats-mini">
+                    <div class="stat-item">
+                        🎯 <span class="stat-value captures">${this.gameState.player.captures || 0}</span>
+                    </div>
+                    <div class="stat-item">
+                        🔥 <span class="stat-value streak">${this.gameState.player.streak || 0}x</span>
+                    </div>
+                </div>
+            </div>
         `;
+    }
+
+    generateInitials(fullName) {
+        if (!fullName) return 'JA';
+        
+        const names = fullName.trim().split(' ').filter(name => name.length > 0);
+        
+        if (names.length >= 2) {
+            // Usar primera letra del primer nombre y primera letra del último apellido
+            return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+        } else if (names.length === 1) {
+            // Si solo hay un nombre, usar las dos primeras letras
+            const name = names[0];
+            return name.length >= 2 ? 
+                (name[0] + name[1]).toUpperCase() : 
+                (name[0] + name[0]).toUpperCase();
+        }
+
+        return 'JA'; // Fallback
     }
 
     createCleanConnectionStatus() {
@@ -769,6 +849,11 @@ export class GameClient {
             registeredAt: Date.now()
         };
 
+        // 🆕 MEJORA: Actualizar display inmediatamente
+        setTimeout(() => {
+            this.updatePlayerDisplayInfo();
+        }, 100);
+
         // Datos para el backend
         this.progressiveFlowManager.handleRegistrationCompleted(playerData);
     }
@@ -789,6 +874,11 @@ export class GameClient {
                 registeredAt: registrationData.timestamp ? new Date(registrationData.timestamp).getTime() : Date.now()
             };
         }
+
+        // 🆕 MEJORA: Actualizar display con datos correctos
+        setTimeout(() => {
+            this.updatePlayerDisplayInfo();
+        }, 200);
 
         // Permisos iOS si es necesario
         this.checkiOSPermissions();
@@ -821,6 +911,8 @@ export class GameClient {
         }
 
         const registrationData = this.playerRegistrationData || this.progressiveFlowManager.getRegistrationData();
+
+        this.updatePlayerDisplayInfo();
 
         // Obtener nombre completo del jugador
         const playerName = registrationData ? 
@@ -1369,6 +1461,11 @@ export class GameClient {
         img.style.objectFit = 'contain';
 
         arElement.appendChild(img);
+
+        arElement.dataset.spawnName = spawn.name;
+        arElement.dataset.spawnType = spawn.type;
+
+
         arElement.title = `${spawn.type} - ${spawn.points} puntos`;
         
         //  Usar posición calculada por FOV
@@ -1414,14 +1511,78 @@ export class GameClient {
     // MÉTODOS DE UI LIMPIA
     updateCleanUI() {
         this.updateCleanPoints();
+        this.updateCleanStats();
         this.updateCleanObjectCounter();
     }
 
     updateCleanPoints() {
-        const pointsDisplay = document.querySelector('#cleanPointsDisplay .points-value');
+        const pointsDisplay = document.querySelector('#cleanPlayerDisplay .points-value');
         if (pointsDisplay) {
-            pointsDisplay.textContent = this.gameState.player.points;
+            // Animar cambio de puntos
+            const currentPoints = parseInt(pointsDisplay.textContent) || 0;
+            const newPoints = this.gameState.player.points;
+
+            if (newPoints !== currentPoints) {
+                this.animatePointsChange(pointsDisplay, currentPoints, newPoints);
+            }
         }
+    }
+
+    updateCleanStats() {
+        const capturesDisplay = document.querySelector('#cleanPlayerDisplay .captures');
+        const streakDisplay = document.querySelector('#cleanPlayerDisplay .streak');
+        
+        if (capturesDisplay) {
+            capturesDisplay.textContent = this.gameState.player.captures || 0;
+        }
+
+        if (streakDisplay) {
+            const streak = this.gameState.player.streak || 0;
+            streakDisplay.textContent = streak > 0 ? `${streak}x` : '0x';
+
+            // Cambiar color según la racha
+            if (streak >= 5) {
+                streakDisplay.style.color = '#ff6b35'; // Naranja para rachas altas
+            } else if (streak >= 3) {
+                streakDisplay.style.color = '#ffd700'; // Dorado para rachas medias
+            } else {
+                streakDisplay.style.color = '#ffd700'; // Color normal
+            }
+        }
+    }
+
+    animatePointsChange(element, from, to) {
+        // Efecto de escalado
+        element.style.transform = 'scale(1.2)';
+        element.style.color = '#00ff88';
+        
+        // Animación de números
+        const duration = 500;
+        const start = Date.now();
+        const difference = to - from;
+        
+        const animate = () => {
+            const elapsed = Date.now() - start;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Easing function para animación suave
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            const currentValue = Math.round(from + (difference * easeOut));
+
+            element.textContent = currentValue.toLocaleString();
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // Restaurar estilo normal
+                setTimeout(() => {
+                    element.style.transform = 'scale(1)';
+                    element.style.color = '#00ff88';
+                }, 100);
+            }
+        };
+
+        animate();
     }
 
     updateCleanObjectCounter() {
@@ -1436,6 +1597,18 @@ export class GameClient {
     }
 
     updateCleanConnectionStatus(connected) {
+        const statusElement = document.querySelector('#cleanPlayerDisplay .player-status');
+        if (statusElement) {
+            if (connected) {
+                statusElement.textContent = '• En juego';
+                statusElement.style.color = '#00ff88';
+            } else {
+                statusElement.textContent = '• Desconectado';
+                statusElement.style.color = '#ff4444';
+            }
+        }
+
+        // Mantener el dot de conexión también
         const dot = document.querySelector('.connection-dot');
         if (dot) {
             if (connected) {

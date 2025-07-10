@@ -155,7 +155,7 @@ export class ProgressiveFlowManager {
      * Mostrar alerta rápida de iOS
      */
     showIOSAlert(callback) {
-        alert('Para jugar debes registrarte');
+        // alert('Para jugar debes registrarte');
         setTimeout(callback, 100);
     }
 

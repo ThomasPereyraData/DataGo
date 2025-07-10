@@ -62,7 +62,7 @@ export class ThrowMechanics {
         }
 
         // Encontrar el objetivo más cercano al tap
-        const targetInfo = this.findClosestTarget(tapX, tapY, availableTargets);
+        const targetInfo = this.findClosestTargetWithDOMCheck(tapX, tapY, availableTargets);
         
         if (!targetInfo) {
             return { success: false, reason: 'No hay objetivo válido' };
@@ -83,23 +83,51 @@ export class ThrowMechanics {
         let closestDistance = Infinity;
         let targetElement = null;
 
-        availableTargets.forEach(target => {
+        // 🆕 MEJORA: Crear array con elementos y sus z-indexes
+        const targetsWithElements = availableTargets.map(target => {
             const element = document.getElementById(`spawn-${target.id}`);
-            if (!element) return;
+            if (!element) return null;
 
             const rect = element.getBoundingClientRect();
-            const targetScreenX = rect.left + rect.width / 2;
-            const targetScreenY = rect.top + rect.height / 2;
+            const zIndex = parseInt(window.getComputedStyle(element).zIndex) || 0;
+            
+            return {
+                target,
+                element,
+                rect,
+                zIndex,
+                screenX: rect.left + rect.width / 2,
+                screenY: rect.top + rect.height / 2
+            };
+        }).filter(Boolean); // Remover elementos null
 
+        // 🆕 MEJORA: Ordenar por z-index (más arriba primero)
+        targetsWithElements.sort((a, b) => b.zIndex - a.zIndex);
+
+        // 🆕 MEJORA: Buscar considerando orden de renderizado
+        targetsWithElements.forEach(({ target, element, screenX, screenY }) => {
             const screenDistance = Utils.calculateDistance(
                 { x: tapX, y: tapY },
-                { x: targetScreenX, y: targetScreenY }
+                { x: screenX, y: screenY }
             );
 
-            if (screenDistance < closestDistance && screenDistance <= this.accuracy.maxRange) {
-                closestDistance = screenDistance;
-                closestTarget = target;
-                targetElement = element;
+            // 🆕 MEJORA: Verificar si el toque está realmente dentro del elemento
+            const isWithinElement = this.isPointWithinElement(tapX, tapY, element);
+
+            if (screenDistance <= this.accuracy.maxRange) {
+                // 🆕 MEJORA: Priorizar elementos que contienen directamente el punto
+                if (isWithinElement) {
+                    // Si el tap está dentro del elemento, es la mejor opción
+                    closestTarget = target;
+                    targetElement = element;
+                    closestDistance = screenDistance;
+                    return; // Salir del forEach (encontramos el mejor)
+                } else if (screenDistance < closestDistance && !closestTarget) {
+                    // Si no hay uno mejor, usar este como fallback
+                    closestDistance = screenDistance;
+                    closestTarget = target;
+                    targetElement = element;
+                }
             }
         });
 
@@ -114,6 +142,80 @@ export class ThrowMechanics {
                 y: targetElement.getBoundingClientRect().top + targetElement.getBoundingClientRect().height / 2
             }
         };
+    }
+
+    /**
+     * 🆕 NUEVA FUNCIÓN: Verificar si un punto está dentro de un elemento
+     */
+    isPointWithinElement(x, y, element) {
+        const rect = element.getBoundingClientRect();
+        return (
+            x >= rect.left &&
+            x <= rect.right &&
+            y >= rect.top &&
+            y <= rect.bottom
+        );
+    }
+
+    /**
+     * 🆕 NUEVA FUNCIÓN: Obtener elemento más visible en una posición
+     */
+    getTopElementAtPosition(x, y) {
+        // Usar elementFromPoint para obtener el elemento más arriba
+        const element = document.elementFromPoint(x, y);
+        
+        // Verificar si es un spawn element
+        if (element && element.id && element.id.startsWith('spawn-')) {
+            return element;
+        }
+        
+        // Si no es un spawn, buscar en sus ancestros
+        let parent = element?.parentElement;
+        while (parent) {
+            if (parent.id && parent.id.startsWith('spawn-')) {
+                return parent;
+            }
+            parent = parent.parentElement;
+        }
+        
+        return null;
+    }
+
+    /**
+     * 🆕 MÉTODO ALTERNATIVO: Usar elementFromPoint como verificación adicional
+     */
+    findClosestTargetWithDOMCheck(tapX, tapY, availableTargets) {
+        // Primero, verificar qué elemento está realmente en esa posición
+        const topElement = this.getTopElementAtPosition(tapX, tapY);
+        
+        if (topElement) {
+            // Extraer ID del spawn
+            const spawnId = parseInt(topElement.id.replace('spawn-', ''));
+            
+            // Buscar el target correspondiente
+            const directTarget = availableTargets.find(target => target.id === spawnId);
+            
+            if (directTarget) {
+                console.log(`🎯 Captura directa detectada: ${directTarget.name}`);
+                
+                const rect = topElement.getBoundingClientRect();
+                return {
+                    target: directTarget,
+                    element: topElement,
+                    screenDistance: Utils.calculateDistance(
+                        { x: tapX, y: tapY },
+                        { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+                    ),
+                    screenPosition: {
+                        x: rect.left + rect.width / 2,
+                        y: rect.top + rect.height / 2
+                    }
+                };
+            }
+        }
+        
+        // Si no hay detección directa, usar el método mejorado anterior
+        return this.findClosestTarget(tapX, tapY, availableTargets);
     }
 
     /**

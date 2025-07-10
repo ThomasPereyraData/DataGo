@@ -29,6 +29,17 @@ export class FOVManager {
             centerY: window.innerHeight / 2
         };
         
+        // 🆕 NUEVA PROPIEDAD: Tracking de posiciones ocupadas
+        this.occupiedPositions = new Map(); // spawnId -> {x, y, radius}
+        
+        // 🆕 NUEVA CONFIGURACIÓN: Espaciado entre objetos
+        this.spacingConfig = {
+            minSeparation: 80,      // Píxeles mínimos entre objetos
+            maxAttempts: 10,        // Intentos máximos para encontrar posición libre
+            separationRadius: 60,   // Radio de separación en píxeles
+            edgeBuffer: 40         // Buffer desde los bordes de pantalla
+        };
+        
         // Actualizar dimensiones si cambia la pantalla
         this.updateScreenDimensions();
         window.addEventListener('resize', () => this.updateScreenDimensions());        
@@ -106,15 +117,90 @@ export class FOVManager {
     }
 
     /**
-     * Proyectar posición mundial a coordenadas de pantalla
+     * 🆕 NUEVA FUNCIÓN: Verificar si una posición está ocupada
      */
-    worldToScreen(objectWorldPosition) {
+    isPositionOccupied(x, y, excludeId = null) {
+        for (const [spawnId, pos] of this.occupiedPositions) {
+            if (excludeId && spawnId === excludeId) continue;
+            
+            const distance = Math.sqrt(
+                Math.pow(x - pos.x, 2) + Math.pow(y - pos.y, 2)
+            );
+            
+            if (distance < (pos.radius + this.spacingConfig.separationRadius)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 🆕 NUEVA FUNCIÓN: Encontrar posición libre cerca de una posición ideal
+     */
+    findFreePosition(idealX, idealY, spawnId) {
+        const attempts = this.spacingConfig.maxAttempts;
+        const minSep = this.spacingConfig.minSeparation;
+        
+        // Intentar la posición ideal primero
+        if (!this.isPositionOccupied(idealX, idealY, spawnId) && 
+            this.isPositionValid(idealX, idealY)) {
+            return { x: idealX, y: idealY };
+        }
+        
+        // Buscar en espiral alrededor de la posición ideal
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+            const radius = (attempt / attempts) * minSep * 2;
+            const angleStep = (2 * Math.PI) / (attempt * 4); // Más puntos en círculos más grandes
+            
+            for (let angle = 0; angle < 2 * Math.PI; angle += angleStep) {
+                const newX = idealX + Math.cos(angle) * radius;
+                const newY = idealY + Math.sin(angle) * radius;
+                
+                if (this.isPositionValid(newX, newY) && 
+                    !this.isPositionOccupied(newX, newY, spawnId)) {
+                    return { x: newX, y: newY };
+                }
+            }
+        }
+        
+        // Si no encuentra posición libre, usar la ideal pero con offset aleatorio
+        const randomAngle = Math.random() * 2 * Math.PI;
+        const randomRadius = minSep + Math.random() * minSep;
+        
+        return {
+            x: Math.max(this.spacingConfig.edgeBuffer, 
+                Math.min(this.screen.width - this.spacingConfig.edgeBuffer, 
+                    idealX + Math.cos(randomAngle) * randomRadius)),
+            y: Math.max(this.spacingConfig.edgeBuffer, 
+                Math.min(this.screen.height - this.spacingConfig.edgeBuffer, 
+                    idealY + Math.sin(randomAngle) * randomRadius))
+        };
+    }
+
+    /**
+     * 🆕 NUEVA FUNCIÓN: Verificar si una posición es válida en pantalla
+     */
+    isPositionValid(x, y) {
+        return x >= this.spacingConfig.edgeBuffer && 
+               x <= (this.screen.width - this.spacingConfig.edgeBuffer) &&
+               y >= this.spacingConfig.edgeBuffer && 
+               y <= (this.screen.height - this.spacingConfig.edgeBuffer);
+    }
+
+    /**
+     * FUNCIÓN MODIFICADA: Proyectar posición mundial a coordenadas de pantalla
+     */
+    worldToScreen(objectWorldPosition, spawnId = null) {
         if (!this.state.isReady) {
             return null;
         }
 
         // 1. Verificar si está en FOV
         if (!this.isObjectInFOV(objectWorldPosition)) {
+            // 🆕 MEJORA: Limpiar posición ocupada si sale del FOV
+            if (spawnId && this.occupiedPositions.has(spawnId)) {
+                this.occupiedPositions.delete(spawnId);
+            }
             return null;
         }
 
@@ -127,23 +213,30 @@ export class FOVManager {
         
         // 4. Convertir ángulo a posición horizontal en pantalla
         const horizontalOffset = (relativeAngle / (this.config.horizontalFOV / 2)) * (this.screen.centerX - this.config.screenMargin);
-        const screenX = this.screen.centerX + horizontalOffset;
+        const idealScreenX = this.screen.centerX + horizontalOffset;
         
         // 5. Calcular posición vertical basada en distancia (perspectiva)
         const verticalOffset = this.calculateVerticalOffset(distance);
-        const screenY = this.screen.centerY + verticalOffset;
+        const idealScreenY = this.screen.centerY + verticalOffset;
         
-        // 6. Verificar que esté dentro de los límites de pantalla
-        if (this.isPositionOnScreen(screenX, screenY)) {
-            return {
-                x: Math.round(screenX),
-                y: Math.round(screenY),
-                distance: distance,
-                relativeAngle: relativeAngle
-            };
+        // 🆕 MEJORA: Encontrar posición libre cerca de la ideal
+        const freePosition = this.findFreePosition(idealScreenX, idealScreenY, spawnId);
+        
+        // 🆕 MEJORA: Registrar posición ocupada
+        if (spawnId) {
+            this.occupiedPositions.set(spawnId, {
+                x: freePosition.x,
+                y: freePosition.y,
+                radius: this.spacingConfig.separationRadius / 2
+            });
         }
         
-        return null;
+        return {
+            x: Math.round(freePosition.x),
+            y: Math.round(freePosition.y),
+            distance: distance,
+            relativeAngle: relativeAngle
+        };
     }
 
     /**
@@ -176,15 +269,31 @@ export class FOVManager {
     }
 
     /**
-     * Obtener todos los objetos visibles con sus posiciones de pantalla
+     * FUNCIÓN MODIFICADA: Obtener todos los objetos visibles con sus posiciones de pantalla
      */
     getVisibleObjects(worldObjects) {
         if (!this.state.isReady) return [];
         
         const visibleObjects = [];
         
-        worldObjects.forEach(obj => {
-            const screenPos = this.worldToScreen(obj.worldPosition);
+        // 🆕 MEJORA: Limpiar posiciones de objetos que ya no están en la lista
+        const currentSpawnIds = new Set(worldObjects.map(obj => obj.id));
+        for (const [spawnId] of this.occupiedPositions) {
+            if (!currentSpawnIds.has(spawnId)) {
+                this.occupiedPositions.delete(spawnId);
+            }
+        }
+        
+        // Procesar objetos ordenados por distancia (más cercanos primero)
+        const sortedObjects = [...worldObjects].sort((a, b) => {
+            const distA = Utils.calculateDistance(this.state.playerPosition, a.worldPosition);
+            const distB = Utils.calculateDistance(this.state.playerPosition, b.worldPosition);
+            return distA - distB;
+        });
+        
+        sortedObjects.forEach(obj => {
+            // 🆕 MEJORA: Pasar spawnId para tracking de posición
+            const screenPos = this.worldToScreen(obj.worldPosition, obj.id);
             
             if (screenPos) {
                 visibleObjects.push({
@@ -196,10 +305,27 @@ export class FOVManager {
             }
         });
         
-        // Ordenar por distancia (más cercanos primero)
-        visibleObjects.sort((a, b) => a.distance - b.distance);
-        
         return visibleObjects;
+    }
+
+    /**
+     * 🆕 NUEVA FUNCIÓN: Limpiar posición ocupada manualmente
+     */
+    clearOccupiedPosition(spawnId) {
+        if (this.occupiedPositions.has(spawnId)) {
+            this.occupiedPositions.delete(spawnId);
+        }
+    }
+
+    /**
+     * 🆕 NUEVA FUNCIÓN: Obtener información de debug sobre posiciones
+     */
+    getDebugInfo() {
+        return {
+            occupiedPositions: Array.from(this.occupiedPositions.entries()),
+            screenDimensions: this.screen,
+            spacingConfig: this.spacingConfig
+        };
     }
 
     /**
@@ -210,9 +336,12 @@ export class FOVManager {
     }
 
     /**
-     * Destruir FOVManager
+     * FUNCIÓN MODIFICADA: Destruir FOVManager
      */
     destroy() {
         window.removeEventListener('resize', this.updateScreenDimensions);
+        
+        // 🆕 MEJORA: Limpiar posiciones ocupadas
+        this.occupiedPositions.clear();
     }
 }

@@ -299,12 +299,9 @@ export class GameClient {
         const { target, accuracy, multiplier, screenDistance, physicalDistance } = hitData;
 
         const element = document.getElementById(`spawn-${target.id}`);
-        const actualName = element?.dataset.spawnName || 'desconocido';
+        const actualNameSeen  = element?.dataset.spawnName || target.name;
 
-        if (actualName !== target.name) {
-            console.warn(`⚠️ Desincronización: esperaba "${target.name}", DOM muestra "${actualName}"`);
-            this.showTemporaryMessage(`Capturando ${actualName}`, 'info');
-        }
+        this.lastSeenObjectName = actualNameSeen;
         
         
         this.socketManager.attemptCapture({
@@ -314,7 +311,8 @@ export class GameClient {
             throwAccuracy: accuracy,
             throwMultiplier: multiplier,
             screenDistance: screenDistance,
-            physicalDistance: physicalDistance
+            physicalDistance: physicalDistance,
+            clientSeenName: actualNameSeen
         });
         
         this.showThrowAccuracyFeedback(accuracy, multiplier);
@@ -1340,7 +1338,7 @@ export class GameClient {
             bonusText = `<div class="capture-bonus">${data.multiplier.toFixed(1)}x multiplier</div>`;
         }
 
-        const objectName = data.objectName || 'Objeto';
+        const objectName = this.lastSeenObjectName || data.objectName || 'Objeto';
 
         feedback.innerHTML = `
             <div class="capture-emoji">🎯</div>

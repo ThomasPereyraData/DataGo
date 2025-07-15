@@ -24,7 +24,19 @@ export class GameClient {
             },
             spawns: [],           // worldPosition
             visibleSpawns: [],    // solo visibles en FOV
-            totalPlayers: 0
+            totalPlayers: 0,
+            // 🆕 NUEVO: Sistema de timers dual
+            timer: {
+                gameDuration: 3 * 60 * 1000,      // 3 minutos máximo de partida
+                inactivityTimeout: 2 * 60 * 1000,  // 2 minutos sin capturas = inactivo
+                startTime: null,
+                lastCaptureTime: null,              // Timestamp de última captura
+                remaining: 3 * 60 * 1000,
+                isActive: false,
+                gameIntervalId: null,               // Timer principal (countdown visual)
+                inactivityIntervalId: null,         // Timer de inactividad (background)
+                gameTimeoutId: null                 // Timeout de finalización por tiempo
+            }
         };
 
         // Estado de captura
@@ -936,13 +948,13 @@ export class GameClient {
             this.elements.joinGameBtn.textContent = '✅ En Juego';
             this.elements.joinGameBtn.disabled = true;
 
-            // Crear botón de finalizar
+            // 🆕 INICIAR TIMER AUTOMÁTICO
             setTimeout(() => {
-                this.createFinishGameButton();
+                this.startGameTimer();
             }, 1000);
 
             setTimeout(() => {
-                this.showTemporaryMessage('¡Continuemos jugando!', 'info');
+                this.showTemporaryMessage('¡3 minutos para conseguir los máximos puntos!', 'info');
             }, 2000);
 
         } else {
@@ -1063,6 +1075,9 @@ export class GameClient {
             this.gameState.player.streak = data.streak || 0;
             this.gameState.player.captures++;
 
+            // 🆕 CRÍTICO: Actualizar timer de inactividad
+            this.updateLastCaptureTime();
+
             //Datos para endpoint de captura
             this.logCaptureEvent(data);
             
@@ -1096,171 +1111,6 @@ export class GameClient {
         });
     }
 
-    createFinishGameButton() {
-        // Solo crear si está en juego y no existe ya
-        if (!this.gameState.isJoined || document.getElementById('finishGameBtn')) {
-            return;
-        }
-
-        const finishBtn = document.createElement('button');
-        finishBtn.id = 'finishGameBtn';
-        finishBtn.className = 'btn-finish-game';
-        finishBtn.innerHTML = `
-            <span class="finish-icon">🏁</span>
-            <span class="finish-text">Finalizar Partida</span>
-        `;
-
-        finishBtn.addEventListener('click', () => {
-            this.showFinishGameModal();
-        });
-
-        document.body.appendChild(finishBtn);
-
-        // Animar entrada
-        setTimeout(() => {
-            finishBtn.classList.add('show');
-        }, 100);
-    }
-
-    // 2️⃣ Modal de confirmación:
-    showFinishGameModal() {
-        // Prevenir múltiples modales
-        if (document.getElementById('finishGameModal')) return;
-
-        const modal = document.createElement('div');
-        modal.id = 'finishGameModal';
-        modal.className = 'finish-game-modal';
-
-        const playerData = this.getRegistrationData();
-        const playerName = playerData ? `${playerData.name} ${playerData.lastName}` : 'Jugador';
-
-        modal.innerHTML = `
-            <div class="finish-modal-content">
-                <div class="finish-modal-header">
-                    <div class="finish-modal-icon">🏆</div>
-                    <h2>¡Partida Completada!</h2>
-                    <p>¿Estás seguro que quieres finalizar?</p>
-                </div>
-
-                <div class="finish-modal-body">
-                    <div class="game-summary">
-                        <div class="summary-item">
-                            <span class="summary-label">Jugador:</span>
-                            <span class="summary-value">${playerName}</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">Puntos Obtenidos:</span>
-                            <span class="summary-value points-highlight">${this.gameState.player.points}</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">Objetos Capturados:</span>
-                            <span class="summary-value">${this.gameState.player.captures}</span>
-                        </div>
-                    </div>
-
-                    <div class="finish-notice">
-                        <div class="notice-icon">💾</div>
-                        <p><strong>Tus puntos se guardarán automáticamente.</strong></p>
-                        <p>La próxima vez que juegues comenzarás una nueva partida.</p>
-                    </div>
-                </div>
-
-                <div class="finish-modal-footer">
-                    <button class="btn-cancel" id="cancelFinish">
-                        Seguir Jugando
-                    </button>
-                    <button class="btn-confirm" id="confirmFinish">
-                        <span class="confirm-icon">✅</span>
-                        Finalizar Partida
-                    </button>
-                </div>
-            </div>
-        `;
-
-        // Event listeners
-        modal.querySelector('#cancelFinish').addEventListener('click', () => {
-            this.hideFinishGameModal();
-        });
-
-        modal.querySelector('#confirmFinish').addEventListener('click', () => {
-            this.executeFinishGame();
-        });
-
-        // Cerrar con click fuera del modal
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                this.hideFinishGameModal();
-            }
-        });
-
-        document.body.appendChild(modal);
-
-        // Animar entrada
-        setTimeout(() => {
-            modal.classList.add('show');
-        }, 100);
-    }
-
-    // 3️⃣ Ocultar modal:
-    hideFinishGameModal() {
-        const modal = document.getElementById('finishGameModal');
-        if (modal) {
-            modal.classList.add('hide');
-            setTimeout(() => {
-                modal.remove();
-            }, 300);
-        }
-    }
-
-    // 4️⃣ Ejecutar finalización:
-    async executeFinishGame() {
-        const confirmBtn = document.getElementById('confirmFinish');
-        const originalContent = confirmBtn.innerHTML;
-        
-        try {
-            // Cambiar botón a estado de carga
-            confirmBtn.innerHTML = `
-                <span class="loading-spinner"></span>
-                Finalizando...
-            `;
-            confirmBtn.disabled = true;
-
-            // 1. Enviar desconexión al backend
-            const socketId = this.socketManager?.socket?.id;
-            if (socketId && this.apiManager) {
-                await this.apiManager.sendDisconnection(socketId);
-            }
-
-            // 2. Notificar al servidor (pero no desconectar aún)
-            this.socketManager.send('finish-game', {
-                socketId: socketId,
-                finalStats: {
-                    points: this.gameState.player.points,
-                    captures: this.gameState.player.captures,
-                    bestStreak: this.gameState.player.bestStreak,
-                    playTime: Date.now() - this.gameState.player.joinedAt
-                }
-            });
-
-            // 3. Mostrar mensaje de éxito en el modal
-            this.showFinishSuccess();
-
-            // 4. Limpiar después de un momento SIN desconectar socket
-            setTimeout(() => {
-                this.cleanupGameSession();
-            }, 3000);
-
-        } catch (error) {
-            console.error('Error finalizando partida:', error);
-
-            // Restaurar botón en caso de error
-            confirmBtn.innerHTML = originalContent;
-            confirmBtn.disabled = false;
-
-            this.showTemporaryMessage('Error al finalizar partida. Inténtalo de nuevo.', 'error');
-        }
-    }
-
     // 5️⃣ Mostrar éxito en el modal:
     showFinishSuccess() {
         const modal = document.getElementById('finishGameModal');
@@ -1282,9 +1132,18 @@ export class GameClient {
 
     // 6️⃣ Limpiar sesión:
     cleanupGameSession() {
-        // Ocultar modal
-        this.hideFinishGameModal();
+        console.log('🧹 Limpiando sesión de juego');
         
+        // 🆕 DETENER TODOS LOS TIMERS PRIMERO
+        this.stopGameTimer();
+        
+        // Ocultar modal si existe
+        const modal = document.getElementById('gameFinishedModal');
+        if (modal) {
+            modal.classList.add('hide');
+            setTimeout(() => modal.remove(), 300);
+        }
+
         // Limpiar estado del juego pero mantener datos de registro
         this.gameState.isJoined = false;
         this.gameState.spawns = [];
@@ -1293,10 +1152,20 @@ export class GameClient {
         this.gameState.player.captures = 0;
         this.gameState.player.streak = 0;
         this.gameState.player.bestStreak = 0;
-        
-        // Remover botón de finalizar
-        document.getElementById('finishGameBtn')?.remove();
-        
+
+        // 🆕 RESETEAR ESTADO DEL TIMER
+        this.gameState.timer = {
+            gameDuration: 3 * 60 * 1000,
+            inactivityTimeout: 2 * 60 * 1000,
+            startTime: null,
+            lastCaptureTime: null,
+            remaining: 3 * 60 * 1000,
+            isActive: false,
+            gameIntervalId: null,
+            inactivityIntervalId: null,
+            gameTimeoutId: null
+        };
+
         // Limpiar AR overlay
         if (this.elements.arOverlay) {
             this.elements.arOverlay.innerHTML = '';
@@ -1308,7 +1177,7 @@ export class GameClient {
             this.elements.joinGameBtn.textContent = '🎮 Unirse al Juego';
         }
 
-        // 🆕 Habilitar botón de cámara si se había deshabilitado
+        // Habilitar botón de cámara si se había deshabilitado
         if (this.elements.startCameraBtn) {
             this.elements.startCameraBtn.disabled = false;
             this.elements.startCameraBtn.textContent = '📱 Activar Cámara';
@@ -1317,7 +1186,7 @@ export class GameClient {
         // Actualizar UI
         this.updateCleanUI();
 
-        // 🆕 Reconectar socket limpiamente si se perdió la conexión
+        // Reconectar socket limpiamente si se perdió la conexión
         setTimeout(() => {
             if (!this.socketManager.isConnected) {
                 this.socketManager.forceReconnect();
@@ -1673,6 +1542,300 @@ export class GameClient {
             this.socketManager.forceReconnect();
         }
     }
+
+
+
+    /**
+     * Iniciar sistema de timers (principal + inactividad)
+     */
+    startGameTimer() {
+    const now = Date.now();
+    this.gameState.timer.startTime = now;
+    this.gameState.timer.lastCaptureTime = now; // Inicializar con tiempo de inicio
+    this.gameState.timer.isActive = true;
+        
+    // Crear display visual del timer
+    this.createTimerDisplay();
+    
+    // Timer principal - actualizar UI cada segundo
+    this.gameState.timer.gameIntervalId = setInterval(() => {
+        this.updateGameTimer();
+    }, 1000);
+    
+    // Timer de inactividad - chequear cada 30 segundos
+    this.gameState.timer.inactivityIntervalId = setInterval(() => {
+        this.checkInactivity();
+    }, 30000);
+    
+    // Auto-finish por tiempo límite (3 minutos)
+    this.gameState.timer.gameTimeoutId = setTimeout(() => {
+        if (this.gameState.timer.isActive) {
+            this.autoFinishGame('time-limit');
+        }
+    }, this.gameState.timer.gameDuration);
+    }
+
+    /**
+     * Actualizar timer principal y UI
+     */
+    updateGameTimer() {
+    if (!this.gameState.timer.isActive) return;
+    
+    const elapsed = Date.now() - this.gameState.timer.startTime;
+    const remaining = Math.max(0, this.gameState.timer.gameDuration - elapsed);
+    
+    this.gameState.timer.remaining = remaining;
+    
+    // Actualizar display visual
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    const timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    const timerElement = document.querySelector('.timer-text');
+    if (timerElement) {
+        timerElement.textContent = timerText;
+    }
+    
+    // Efectos visuales en los últimos 30 segundos
+    const timerDisplay = document.getElementById('gameTimer');
+    if (timerDisplay) {
+        if (remaining < 30000) {
+            timerDisplay.classList.add('timer-warning');
+        }
+    }
+    
+    // Si llega a 0, se activará el timeout, no hace falta validar aquí
+    }
+
+    /**
+     * Chequear inactividad (2 minutos sin capturas)
+     */
+    checkInactivity() {
+    if (!this.gameState.timer.isActive) return;
+    
+    const now = Date.now();
+    const timeSinceLastCapture = now - this.gameState.timer.lastCaptureTime;
+    const minutesSinceCapture = Math.round(timeSinceLastCapture / 60000);
+    
+    console.log(`🕐 Tiempo desde última captura: ${minutesSinceCapture} minutos`);
+    
+    if (timeSinceLastCapture >= this.gameState.timer.inactivityTimeout) {
+        console.log('😴 Usuario inactivo por 2 minutos, finalizando partida');
+        this.autoFinishGame('inactivity');
+    }
+    }
+
+    /**
+     * Actualizar timestamp de última captura
+     */
+    updateLastCaptureTime() {
+    this.gameState.timer.lastCaptureTime = Date.now();
+    console.log('🎯 Captura registrada, timer de inactividad reiniciado');
+    }
+
+    /**
+     * Detener todos los timers
+     */
+    stopGameTimer() {
+    console.log('⏹️ Deteniendo todos los timers');
+    
+    this.gameState.timer.isActive = false;
+    
+    if (this.gameState.timer.gameIntervalId) {
+        clearInterval(this.gameState.timer.gameIntervalId);
+        this.gameState.timer.gameIntervalId = null;
+    }
+    
+    if (this.gameState.timer.inactivityIntervalId) {
+        clearInterval(this.gameState.timer.inactivityIntervalId);
+        this.gameState.timer.inactivityIntervalId = null;
+    }
+    
+    if (this.gameState.timer.gameTimeoutId) {
+        clearTimeout(this.gameState.timer.gameTimeoutId);
+        this.gameState.timer.gameTimeoutId = null;
+    }
+    
+    // Remover display del timer
+    const timerDisplay = document.getElementById('gameTimer');
+    if (timerDisplay) {
+        timerDisplay.remove();
+    }
+    }
+
+    /**
+     * Finalización automática por timer o inactividad
+     */
+    async autoFinishGame(reason = 'time-limit') {
+    
+        // Detener todos los timers
+        this.stopGameTimer();
+        
+        // Mostrar modal apropiado
+        this.showFinalizationModal(reason);
+        
+        // Ejecutar finalización común 
+        await this.executeGameFinalization(true, reason);
+    }
+
+    /**
+     * Crear display visual del cronómetro
+     */
+    createTimerDisplay() {
+        // Verificar que no exista ya
+        if (document.getElementById('gameTimer')) return;
+        
+        const timerDisplay = document.createElement('div');
+        timerDisplay.id = 'gameTimer';
+        timerDisplay.className = 'game-timer';
+        timerDisplay.innerHTML = `
+            <div class="timer-circle">
+                <div class="timer-text">3:00</div>
+                <div class="timer-label">restante</div>
+            </div>
+        `;
+        
+        document.body.appendChild(timerDisplay);
+    }
+
+    /**
+     * Modal que cambia según la razón de finalización
+     */
+    showFinalizationModal(reason) {
+    const modal = document.createElement('div');
+    modal.id = 'gameFinishedModal';
+    modal.className = 'finish-game-modal show';
+    
+    let title, message, icon;
+    
+    switch(reason) {
+        case 'time-limit':
+            title = '⏰ ¡Tiempo Agotado!';
+            message = 'Completaste los 3 minutos de juego';
+            icon = '⏰';
+            break;
+            
+        case 'inactivity':
+            title = '😴 Partida Finalizada';
+            message = 'No se detectaron capturas en los últimos 2 minutos';
+            icon = '😴';
+            break;
+            
+        default:
+            title = '🏁 Partida Terminada';
+            message = 'Tu sesión de juego ha finalizado';
+            icon = '🏁';
+    }
+    
+    modal.innerHTML = `
+        <div class="finish-modal-content">
+            <div class="finish-modal-header">
+                <div class="finish-modal-icon">${icon}</div>
+                <h2>${title}</h2>
+                <p>${message}</p>
+            </div>
+            <div class="finish-modal-body">
+                <div class="game-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">Tiempo Jugado:</span>
+                        <span class="summary-value">${this.getPlayTimeFormatted()}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Puntos Finales:</span>
+                        <span class="summary-value points-highlight">${this.gameState.player.points}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Objetos Capturados:</span>
+                        <span class="summary-value">${this.gameState.player.captures}</span>
+                    </div>
+                </div>
+                <div class="finish-notice">
+                    <div class="notice-icon">💾</div>
+                    <p><strong>Guardando datos automáticamente...</strong></p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    console.log(`📱 Modal de finalización mostrado: ${reason}`);
+    }
+
+    /**
+     * Obtener tiempo de juego formateado
+     */
+    getPlayTimeFormatted() {
+    if (!this.gameState.timer.startTime) return '0:00';
+    
+    const playTime = Date.now() - this.gameState.timer.startTime;
+    const minutes = Math.floor(playTime / 60000);
+    const seconds = Math.floor((playTime % 60000) / 1000);
+    
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    /**
+     * Obtener tiempo de juego en milisegundos
+     */
+    getActualPlayTime() {
+        if (!this.gameState.timer.startTime) return 0;
+        return Date.now() - this.gameState.timer.startTime;
+    }
+
+    /**
+     * Mostrar mensaje de éxito automático
+     */
+    showAutoFinishSuccess() {
+    const modal = document.getElementById('gameFinishedModal');
+    if (!modal) return;
+
+    modal.querySelector('.finish-modal-content').innerHTML = `
+        <div class="finish-success">
+            <div class="success-icon">🎉</div>
+            <h2>¡Partida Completada!</h2>
+            <p>Tu sesión ha finalizado automáticamente</p>
+            <div class="success-points">
+                <span class="points-earned">${this.gameState.player.points}</span>
+                <span class="points-label">puntos obtenidos</span>
+            </div>
+            <p class="success-message">¡Datos guardados correctamente!</p>
+        </div>
+    `;
+    }
+
+    /**
+     * Función común de finalización de partida - ACTUALIZADA
+     */
+    async executeGameFinalization(isAutomatic = true, reason = 'unknown') {
+    console.log(`🏁 Ejecutando finalización: automática=${isAutomatic}, razón=${reason}`);
+    
+    const socketId = this.socketManager?.socket?.id;
+    
+    try {
+        // 1. Enviar desconexión al backend
+        if (socketId && this.apiManager) {
+            await this.apiManager.sendDisconnection(socketId);
+        }
+
+        // 2. Notificar al servidor via socket
+        this.socketManager.send('finish-game');
+
+        // 3. Mostrar mensaje de éxito
+        this.showAutoFinishSuccess();
+        
+        // 4. Limpiar sesión después de un momento
+        setTimeout(() => {
+            this.cleanupGameSession();
+        }, 3000);
+
+    } catch (error) {
+        console.error('❌ Error finalizando partida:', error);
+        this.showTemporaryMessage('Error al finalizar partida.', 'error');
+    }
+    }
+
+
+
 
     destroy() {
         this.progressiveFlowManager?.destroy();

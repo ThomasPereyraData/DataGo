@@ -426,15 +426,13 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('finish-game', async (data) => {
+  socket.on('finish-game', async () => {
     console.log(`🏁 Usuario ${socket.id} finalizó la partida voluntariamente`);
     
     const player = gameState.players[socket.id];
     await sendDisconnection(socket.id);
     
-    if (player) {
-        console.log(`🎉 ${player.name} completó la partida con ${data.finalStats.points} puntos`);
-        
+    if (player) {        
         // Limpiar spawns
         gameState.spawns.forEach(spawn => {
             spawn.visibleTo = spawn.visibleTo.filter(id => id !== socket.id);

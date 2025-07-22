@@ -74,15 +74,6 @@ export class MessageManager {
     }
 
     /**
-     * Mostrar mensaje inmediato (interrumpe el actual)
-     */
-    showImmediate(text, type = 'info', duration = 3000) {
-        this.hide();
-        this.messageQueue = []; // Limpiar cola
-        return this.show(text, type, duration);
-    }
-
-    /**
      * Ocultar mensaje actual
      */
     hide() {
@@ -102,50 +93,6 @@ export class MessageManager {
     clear() {
         this.messageQueue = [];
         this.hide();
-    }
-
-    /**
-     * Mostrar mensaje con progreso (para acciones largas)
-     */
-    showProgress(text, type = 'info') {
-        const progressMessage = `${text} <div class="progress-dots">...</div>`;
-        return this.show(progressMessage, type, 0); // Duración 0 = no se oculta automáticamente
-    }
-
-    /**
-     * Actualizar mensaje existente (útil para progreso)
-     */
-    updateCurrent(text, type) {
-        if (this.currentMessage && this.messageBox) {
-            this.messageBox.textContent = text;
-            this.messageBox.className = `message ${type || this.currentMessage.type}`;
-            this.currentMessage.text = text;
-            if (type) this.currentMessage.type = type;
-        }
-    }
-
-    /**
-     * Mostrar mensaje de captura con detalles
-     */
-    showCaptureResult(success, details = {}) {
-        if (success) {
-            let message = `¡Capturado! +${details.points || 10} puntos`;
-            if (details.multiplier > 1) {
-                message += ` (${Utils.formatNumber(details.multiplier)}x)`;
-            }
-            if (details.streak > 1) {
-                message += ` | Racha: ${details.streak}`;
-            }
-            this.successWithVibration(message, [100, 50, 100]);
-        } else {
-            let message = 'No se pudo capturar';
-            if (details.reason === 'Demasiado lejos') {
-                message = `Muy lejos: ${Utils.formatNumber(details.distance)}m (necesitas ${Utils.formatNumber(details.required)}m)`;
-            } else if (details.reason) {
-                message = details.reason;
-            }
-            this.error(message);
-        }
     }
 
     /**

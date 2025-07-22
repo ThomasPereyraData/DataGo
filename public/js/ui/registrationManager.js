@@ -42,8 +42,26 @@ export class RegistrationManager {
                 throw new Error(`Elemento requerido no encontrado: ${elementName}`);
             }
         }
-        
-        this.setupEventListeners();
+
+        // 🆕 SETUP MEJORADO DE EVENT LISTENERS
+        this.setupFormEventListeners();
+        this.setupOverlayEventListeners();
+    }
+
+    setupOverlayEventListeners() {
+        // Evitar cerrar (mostrar mensaje)
+        this.elements.overlay.addEventListener('click', (e) => {
+            if (e.target === this.elements.overlay) {
+                this.showCantCloseMessage();
+            }
+        });
+
+        // Evitar cerrar con Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.state.isVisible) {
+                this.showCantCloseMessage();
+            }
+        });
     }
 
     /**
@@ -132,7 +150,12 @@ export class RegistrationManager {
      */
     show() {
         if (this.state.isVisible) return;
-                
+        
+        console.log('👁️ Mostrando formulario de registro...');
+        
+        // 🆕 RESETEAR ESTADO ANTES DE MOSTRAR
+        this.resetFormState();
+        
         // Mostrar overlay
         this.elements.overlay.classList.add('show');
         this.state.isVisible = true;
@@ -140,11 +163,146 @@ export class RegistrationManager {
         // Focus diferente para PWA vs Browser
         if (this.state.isPWA) {
             // En PWA, no hacer focus automático - esperar tap del usuario
+            console.log('📱 PWA detectada, sin focus automático');
         } else {
             // En browser normal, focus automático
             setTimeout(() => {
                 this.elements.nameInput.focus();
             }, 350);
+        }
+    }
+    /**
+    * Mostrar formulario con error específico de email
+    */
+    showWithEmailError(errorMessage) {
+        console.log('🔄 Mostrando formulario con error de email:', errorMessage);
+        
+        // Mostrar el modal normal
+        this.show();
+        
+        // 🆕 RESETEAR COMPLETAMENTE EL ESTADO DEL FORMULARIO
+        setTimeout(() => {
+            console.log('🔧 Reseteando estado del formulario...');
+
+            // 1. Resetear estado interno
+            this.state.isSubmitting = false;
+
+            // 2. Obtener elementos del DOM
+            const form = this.elements.form;
+            const submitBtn = this.elements.submitButton;
+            const emailInput = this.elements.emailInput;
+            const emailError = document.getElementById('emailError');
+
+            // 3. 🆕 RESETEAR FORMULARIO COMPLETAMENTE
+            if (form) {
+                form.classList.remove('submitting');
+                // NO hacer form.reset() para mantener los datos ya ingresados
+            }
+
+            // 4. 🆕 RESETEAR BOTÓN DE SUBMIT
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('submitting');
+
+                const btnText = submitBtn.querySelector('.btn-text');
+                const btnSpinner = submitBtn.querySelector('.btn-spinner');
+
+                if (btnText) btnText.style.display = 'inline';
+                if (btnSpinner) btnSpinner.style.display = 'none';
+
+                console.log('✅ Botón de submit reseteado');
+            }
+
+            // 5. 🆕 MOSTRAR ERROR EN CAMPO EMAIL Y FOCUS
+            if (emailInput && emailError) {
+                emailInput.classList.add('error');
+                emailError.textContent = errorMessage;
+                emailError.style.display = 'block';
+
+                // Focus en el campo email para que el usuario pueda corregir
+                setTimeout(() => {
+                    emailInput.focus();
+                    emailInput.select(); // Seleccionar todo el texto para fácil corrección
+                }, 100);
+
+                // 🆕 LIMPIAR ERROR AL EMPEZAR A ESCRIBIR
+                const clearErrorHandler = () => {
+                    emailInput.classList.remove('error');
+                    emailError.style.display = 'none';
+                    emailInput.removeEventListener('input', clearErrorHandler);
+                };
+
+                emailInput.addEventListener('input', clearErrorHandler);
+            }
+
+            // 6. 🆕 VERIFICAR QUE EL FORM PUEDA ENVIARSE
+            this.ensureFormCanSubmit();
+
+        }, 100);
+    }
+
+    ensureFormCanSubmit() {
+        console.log('🔍 Verificando que el formulario puede enviarse...');
+        
+        const form = this.elements.form;
+        const submitBtn = this.elements.submitButton;
+        
+        if (form && submitBtn) {
+            // Verificar que el botón no esté deshabilitado
+            if (submitBtn.disabled) {
+                console.log('⚠️ Botón estaba deshabilitado, habilitándolo...');
+                submitBtn.disabled = false;
+            }
+
+            // Verificar que el estado interno sea correcto
+            if (this.state.isSubmitting) {
+                console.log('⚠️ Estado interno era "submitting", corrigiéndolo...');
+                this.state.isSubmitting = false;
+            }
+
+            // 🆕 VERIFICAR EVENT LISTENERS
+            // Clonar el form para asegurar event listeners limpios
+            const newForm = form.cloneNode(true);
+            form.parentNode.replaceChild(newForm, form);
+            this.elements.form = newForm;
+
+            // Reconfigurar event listeners
+            this.setupFormEventListeners();
+
+            console.log('✅ Formulario listo para re-submit');
+        }
+    }
+
+    setupFormEventListeners() {
+        // Submit del formulario
+        this.elements.form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            console.log('📝 Form submit interceptado');
+            this.handleSubmit();
+        });
+        
+        // Obtener elementos actualizados
+        this.elements.nameInput = this.elements.form.querySelector('#playerName');
+        this.elements.lastNameInput = this.elements.form.querySelector('#playerLastName');
+        this.elements.emailInput = this.elements.form.querySelector('#playerEmail');
+        this.elements.submitButton = this.elements.form.querySelector('#submitRegistration');
+        
+        // Validación en tiempo real
+        this.elements.nameInput?.addEventListener('input', () => {
+            this.clearError('nameError');
+        });
+        
+        this.elements.lastNameInput?.addEventListener('input', () => {
+            this.clearError('lastNameError');
+        });
+        
+        this.elements.emailInput?.addEventListener('input', () => {
+            this.clearError('emailError');
+        });
+        
+        // 🆕 PWA-specific touch handlers si es necesario
+        if (this.state.isPWA) {
+            this.setupPWAInputHandlers();
         }
     }
 
@@ -162,35 +320,46 @@ export class RegistrationManager {
      * Manejar envío del formulario
      */
     async handleSubmit() {
-        if (this.state.isSubmitting) return;
-                
+        console.log('🚀 Iniciando handleSubmit...');
+        
+        if (this.state.isSubmitting) {
+            console.log('⚠️ Ya está en proceso de submit, ignorando...');
+            return;
+        }
+
+        console.log('✅ Procediendo con submit...');
+
         // Validar
         const validation = this.validateForm();
         if (!validation.isValid) {
+            console.log('❌ Validación falló:', validation.errors);
             this.showValidationErrors(validation.errors);
             return;
         }
-        
+
         // Obtener datos
         const formData = this.getFormData();
-        
+        console.log('📄 Datos del formulario:', formData);
+
         // Estado de carga
         this.setSubmittingState(true);
-        
+
         try {
             // Guardar datos
-            this.state.playerData = formData;            
-            this.messageManager?.success('¡Registro exitoso! Iniciando juego...');
-            
+            this.state.playerData = formData;
+
+            console.log('✅ Datos guardados localmente');
+
             // Callback
             if (this.onRegistrationSuccess) {
                 this.onRegistrationSuccess(formData);
             }
-            
+
             // Ocultar formulario
             this.hide();
-            
+
         } catch (error) {
+            console.error('❌ Error en handleSubmit:', error);
             this.messageManager?.error('Error en registro de usuario');
             this.setSubmittingState(false);
         }
@@ -314,22 +483,50 @@ export class RegistrationManager {
      * Estado de envío
      */
     setSubmittingState(isSubmitting) {
+        console.log(`🔄 Cambiando estado submitting a: ${isSubmitting}`);
+        
         this.state.isSubmitting = isSubmitting;
         
-        const btnText = this.elements.submitButton.querySelector('.btn-text');
-        const btnSpinner = this.elements.submitButton.querySelector('.btn-spinner');
-        
-        if (isSubmitting) {
-            btnText.style.display = 'none';
-            btnSpinner.style.display = 'inline';
-            this.elements.submitButton.disabled = true;
-            this.elements.submitButton.classList.add('submitting');
-        } else {
-            btnText.style.display = 'inline';
-            btnSpinner.style.display = 'none';
-            this.elements.submitButton.disabled = false;
-            this.elements.submitButton.classList.remove('submitting');
+        const submitBtn = this.elements.submitButton;
+        if (!submitBtn) {
+            console.error('❌ No se encontró el botón de submit');
+            return;
         }
+
+        const btnText = submitBtn.querySelector('.btn-text');
+        const btnSpinner = submitBtn.querySelector('.btn-spinner');
+
+        if (isSubmitting) {
+            console.log('⏳ Activando estado de carga...');
+            if (btnText) btnText.style.display = 'none';
+            if (btnSpinner) btnSpinner.style.display = 'inline';
+            submitBtn.disabled = true;
+            submitBtn.classList.add('submitting');
+        } else {
+            console.log('✅ Desactivando estado de carga...');
+            if (btnText) btnText.style.display = 'inline';
+            if (btnSpinner) btnSpinner.style.display = 'none';
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('submitting');
+        }
+    }
+
+    resetFormState() {
+        
+        // Resetear estado interno
+        this.state.isSubmitting = false;
+        this.state.playerData = null;
+        
+        // Limpiar errores
+        this.clearAllErrors();
+        
+        // Resetear botón
+        this.setSubmittingState(false);
+        
+        // Asegurar que puede enviarse
+        this.ensureFormCanSubmit();
+        
+        console.log('✅ Estado del formulario reseteado');
     }
 
     /**

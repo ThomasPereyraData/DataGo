@@ -234,6 +234,27 @@ export class ProgressiveFlowManager {
     }
 
     /**
+    * Resetear estado de registro por error de validación
+    */
+    resetRegistrationState() {
+        console.log('🔄 Reseteando estado de registro');
+        
+        // Resetear estado interno
+        this.state.isRegistered = false;
+        this.state.registrationData = null;
+        
+        // Mostrar botón de registro si estamos en PWA
+        if (this.state.isPWA && this.state.currentScreen === 'game') {
+            this.showRegisterButton();
+        }
+        
+        // Si estamos en navegador, volver a welcome
+        if (!this.state.isPWA) {
+            this.showWelcomeScreen();
+        }
+    }
+
+    /**
      * Manejar instrucciones PWA
      */
     handleShowPWAInstructions() {

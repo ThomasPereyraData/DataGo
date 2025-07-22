@@ -3,7 +3,7 @@
 export class ApiManager {
     constructor(messageManager = null) {
         this.messageManager = messageManager;
-        this.baseURL = 'https://api.dataiq.com.ar/datagoapi';
+        this.baseURL = 'https://z6zgxfjh-9000.brs.devtunnels.ms/api';
     }
 
     /**
@@ -55,11 +55,14 @@ export class ApiManager {
             
             if (response.ok) {
                 const result = await response.json();                
-                if (this.messageManager) {
-                    this.messageManager.success('Registro completado');
-                }
-                
                 return result;
+            } else if (response.status === 400) {
+                // Error de validación de email
+                const errorData = await response.json().catch(() => ({ message: 'Email inválido' }));
+                const validationError = new Error(errorData.message || 'Email inválido');
+                validationError.isValidationError = true;
+                validationError.status = 400;
+                throw validationError;
             } else {
                 const errorText = await response.text().catch(() => 'No response body');
                 throw new Error(`Error ${response.status}: ${response.statusText}`);

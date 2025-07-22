@@ -371,6 +371,10 @@ export class GameClient {
     createCleanIndicators() {
         this.createCleanPointsDisplay();
         this.createCleanConnectionStatus();
+        // 📊 BOTÓN DE ESTADÍSTICAS - Crear solo si no hay partida activa
+        if (!this.gameState.isJoined) {
+            this.createStatsButton();
+        }
     }
 
     createCleanPointsDisplay() {
@@ -472,6 +476,113 @@ export class GameClient {
         connectionStatus.innerHTML = `<div class="connection-dot"></div>`;
     }
 
+    /**
+     * 📊 Crear botón de estadísticas
+     */
+    createStatsButton() {
+        // Solo mostrar si no hay partida activa
+        if (this.gameState.isJoined) {
+            this.hideStatsButton();
+            return;
+        }
+        
+        let statsBtn = document.getElementById('statsButton');
+        if (!statsBtn) {
+            statsBtn = document.createElement('button');
+            statsBtn.id = 'statsButton';
+            statsBtn.className = 'stats-button entering';
+            statsBtn.innerHTML = '📊 Estadísticas';
+            statsBtn.title = 'Ver mis estadísticas';
+            
+            // Event listener
+            statsBtn.addEventListener('click', () => {
+                this.openStatsPage();
+            });
+            
+            document.body.appendChild(statsBtn);
+            
+            // Remover clase de animación después de la animación
+            setTimeout(() => {
+                statsBtn.classList.remove('entering');
+            }, 500);
+        }
+        
+        statsBtn.style.display = 'flex';
+    }
+
+    /**
+     * Ocultar botón de estadísticas
+     */
+    hideStatsButton() {
+        const statsBtn = document.getElementById('statsButton');
+        if (statsBtn) {
+            statsBtn.style.display = 'none';
+        }
+    }
+
+    /**
+     * Ocultar botones de cámara y juego durante la partida
+     */
+    hideGameButtons() {
+        if (this.elements.startCameraBtn) {
+            this.elements.startCameraBtn.style.display = 'none';
+        }
+        if (this.elements.joinGameBtn) {
+            this.elements.joinGameBtn.style.display = 'none';
+        }
+    }
+
+    /**
+     * Mostrar botones de cámara y juego al finalizar la partida
+     */
+    showGameButtons() {
+        // 🆕 Solo mostrar si no están ya activados correctamente
+        if (this.elements.startCameraBtn) {
+            this.elements.startCameraBtn.style.display = 'block';
+
+            // 🆕 MANTENER ESTADO: Si la cámara ya está activa, mantener botón deshabilitado
+            if (this.cameraManager && this.cameraManager.isActive) {
+                this.elements.startCameraBtn.textContent = '✅ Cámara Activa';
+                this.elements.startCameraBtn.disabled = true;
+            } else {
+                this.elements.startCameraBtn.textContent = '📱 Activar Cámara';
+                this.elements.startCameraBtn.disabled = false;
+            }
+        }
+
+        if (this.elements.joinGameBtn) {
+            this.elements.joinGameBtn.style.display = 'block';
+            // El estado de este botón se maneja en handleRegistrationValidationError
+        }
+    }
+
+    /**
+     * Abrir página de estadísticas
+     */
+    openStatsPage() {
+        const registrationData = this.getRegistrationData();
+        
+        if (!registrationData) {
+            this.showTemporaryMessage('Debes registrarte para ver estadísticas', 'info');
+            return;
+        }
+        
+        // 🔄 TEMPORAL: Abrir Google hasta que tengas la URL real
+        const statsUrl = `https://mashupdatago-personal.web.app/?user=${encodeURIComponent(registrationData.email)}`;
+        
+        try {
+            // Abrir en navegador externo (sale de la PWA)
+            window.open(statsUrl, '_blank');
+            
+            // Feedback al usuario
+            this.showTemporaryMessage('📊 Abriendo estadísticas en navegador...', 'info');
+            
+        } catch (error) {
+            console.error('❌ Error abriendo estadísticas:', error);
+            this.showTemporaryMessage('❌ Error al abrir estadísticas', 'error');
+        }
+    }
+
 
     initializeElements() {
         this.elements = {
@@ -518,7 +629,6 @@ export class GameClient {
         this.socketManager = new SocketManager(this.messageManager);
         this.fovManager = new FOVManager();
         this.pwaManager = new PWAManager(this.messageManager);
-        // AGREGAR después de this.pwaManager = new PWAManager(this.messageManager);
         this.apiManager = new ApiManager(this.messageManager);
         
         // 🆕 CREAR REGISTRATION MANAGER PERO NO INICIALIZAR AÚN
@@ -859,6 +969,9 @@ export class GameClient {
             registeredAt: Date.now()
         };
 
+        this.showTemporaryMessage('✅ Registro completado', 'success');
+
+
         // 🆕 MEJORA: Actualizar display inmediatamente
         setTimeout(() => {
             this.updatePlayerDisplayInfo();
@@ -890,12 +1003,16 @@ export class GameClient {
             this.updatePlayerDisplayInfo();
         }, 200);
 
+        // 📊 MOSTRAR BOTÓN DE ESTADÍSTICAS CUANDO ESTÉ LISTO PARA JUGAR
+        setTimeout(() => {
+            this.createStatsButton();
+        }, 500);
+
         // Permisos iOS si es necesario
         this.checkiOSPermissions();
     }
 
     async proceedWithGameJoin() {
-
         // Prevenir doble click
         if (this.elements.joinGameBtn.disabled) {
             return;
@@ -914,7 +1031,7 @@ export class GameClient {
 
             if (!this.socketManager.isConnected) {
                 this.elements.joinGameBtn.disabled = false;
-                this.elements.joinGameBtn.textContent = '🎮 Unirse al Juego';
+                this.elements.joinGameBtn.textContent = '🎮 Jugar';
                 this.showTemporaryMessage('Error de conexión. Inténtalo de nuevo.', 'error');
                 return;
             }
@@ -922,87 +1039,191 @@ export class GameClient {
 
         const registrationData = this.playerRegistrationData || this.progressiveFlowManager.getRegistrationData();
 
-        this.updatePlayerDisplayInfo();
-
-        // Obtener nombre completo del jugador
-        const playerName = registrationData ? 
-            `${registrationData.name || registrationData.nombre} ${registrationData.lastName || registrationData.apellido}` : 
-            'Jugador AR';
-
-        // Intentar unirse al juego
-        const success = this.socketManager.joinGame({
-            name: playerName,
-            position: this.roomTracker.getPosition(),
-            registrationData: registrationData
-        });
-
-        if (success) {
-            this.gameState.isJoined = true;
-            this.gameState.player.joinedAt = Date.now();
-
-            // Enviar registro con protección contra duplicados
-            if (registrationData) {
-                await this.sendRegistrationSafely(registrationData);
-            }
-            
-            this.elements.joinGameBtn.textContent = '✅ En Juego';
-            this.elements.joinGameBtn.disabled = true;
-
-            // 🆕 INICIAR TIMER AUTOMÁTICO
-            setTimeout(() => {
-                this.startGameTimer();
-            }, 1000);
-
-            setTimeout(() => {
-                this.showTemporaryMessage('¡3 minutos para conseguir los máximos puntos!', 'info');
-            }, 2000);
-
-        } else {
-            // Error al unirse
+        // 🆕 Validar que hay datos de registro válidos
+        if (!registrationData || !registrationData.email) {
             this.elements.joinGameBtn.disabled = false;
-            this.elements.joinGameBtn.textContent = '🎮 Unirse al Juego';
-            this.showTemporaryMessage('Error al unirse al juego', 'error');
+            this.elements.joinGameBtn.textContent = '🎮 Jugar';
+            this.handleRegistrationValidationError('Datos de registro faltantes');
+            return;
+        }
+
+        try {
+            // 🆕 PASO CRÍTICO: Enviar registro al backend AHORA (no antes)
+            this.elements.joinGameBtn.textContent = '⏳ Validando registro...';
+
+            const registrationResult = await this.sendRegistrationToBackend(registrationData);
+
+            if (!registrationResult.success) {
+                throw new Error(registrationResult.error);
+            }
+
+            // 🆕 Si llegamos aquí, el backend respondió OK
+            console.log('✅ Backend validó registro correctamente');
+
+            // Obtener nombre completo del jugador
+            const playerName = registrationData ? 
+                `${registrationData.name || registrationData.nombre} ${registrationData.lastName || registrationData.apellido}` : 
+                'Jugador AR';
+
+            // Ahora sí, unirse al juego en el socket
+            this.elements.joinGameBtn.textContent = '⏳ Iniciando juego...';
+
+            const success = this.socketManager.joinGame({
+                name: playerName,
+                position: this.roomTracker.getPosition(),
+                registrationData: registrationData
+            });
+
+            if (success) {
+                this.gameState.isJoined = true;
+                this.gameState.player.joinedAt = Date.now();
+
+                // 📊 OCULTAR BOTÓN DE ESTADÍSTICAS DURANTE EL JUEGO
+                this.hideStatsButton();
+
+                // Ocultar también los botones de cámara y juego
+                this.hideGameButtons();
+
+                this.elements.joinGameBtn.textContent = '✅ En Juego';
+                this.elements.joinGameBtn.disabled = true;
+
+                // 🆕 SOLO AHORA INICIAR TIMER (después de que todo salió bien)
+                setTimeout(() => {
+                    this.startGameTimer();
+                }, 1000);
+
+                setTimeout(() => {
+                    this.showTemporaryMessage('¡3 minutos para conseguir los máximos puntos!', 'info');
+                }, 2000);
+
+            } else {
+                // Error al unirse al socket
+                this.elements.joinGameBtn.disabled = false;
+                this.elements.joinGameBtn.textContent = '🎮 Jugar';
+                this.showTemporaryMessage('Error al unirse al juego', 'error');
+            }
+
+        } catch (error) {
+            console.error('❌ Error en proceedWithGameJoin:', error);
+
+            // 🆕 Si es error 400 (validación), resetear registro PERO mantener cámara/sensores
+            if (error.message.includes('400') || error.message.includes('validación')) {
+                this.handleRegistrationValidationError(error.message);
+            } else {
+                // Otros errores
+                this.elements.joinGameBtn.disabled = false;
+                this.elements.joinGameBtn.textContent = '🎮 Jugar';
+                this.showTemporaryMessage(`❌ ${error.message}`, 'error');
+            }
         }
     }
 
-    async sendRegistrationSafely(registrationData) {
-        const now = Date.now();
-        const minDelay = 2000; // 2 segundos mínimo entre registros
-        
-        // Verificar si ya hay un registro en progreso
-        if (this.registrationInProgress) {
-            return;
-        }
-
-        // Verificar si fue muy reciente
-        if (now - this.lastRegistrationTime < minDelay) {
-            return;
-        }
-
-        this.registrationInProgress = true;
-        this.lastRegistrationTime = now;
-
-        const currentSocketId = this.socketManager.socket?.id;
-
+    async sendRegistrationToBackend(registrationData) {
         try {
-            await this.apiManager.sendRegistration({
+            const currentSocketId = this.socketManager.socket?.id;
+
+            if (!currentSocketId) {
+                throw new Error('Socket ID no disponible');
+            }
+
+            console.log('📤 Enviando registro al backend...');
+
+            const response = await this.apiManager.sendRegistration({
                 Nombre: registrationData.name,
                 Apellido: registrationData.lastName,
                 Email: registrationData.email,
-                IdSocket: currentSocketId || ''
+                IdSocket: currentSocketId
             });
+
+            console.log('✅ Backend respondió OK:', response);
 
             // Actualizar socket ID local
             registrationData.IdSocket = currentSocketId;
 
+            return { success: true, data: response };
+
         } catch (error) {
             console.error('❌ Error enviando registro:', error);
-        } finally {
-            // 🔧 Liberar lock después de un tiempo
-            setTimeout(() => {
-                this.registrationInProgress = false;
-            }, 1000);
+
+            if (error.isValidationError && error.status === 400) {
+                return { 
+                    success: false, 
+                    error: `Error de validación (400): ${error.message}. Verifica tu email.`
+                };
+            }
+
+            return { 
+                success: false, 
+                error: error.message || 'Error de conexión con el servidor'
+            };
         }
+    }
+
+
+    
+
+    /**
+    * Manejar error de validación de registro
+    */
+    async handleRegistrationValidationError(errorMessage) {
+        console.log('🚫 Error de validación del backend, reseteando registro PERO manteniendo cámara/sensores');
+
+        // 🆕 DETENER TIMER SI ESTABA ACTIVO
+        this.stopGameTimer();
+
+        // 1. Limpiar localStorage
+        localStorage.removeItem('datago-registro');
+
+        // 2. Resetear estado del progressive flow
+        if (this.progressiveFlowManager) {
+            this.progressiveFlowManager.resetRegistrationState();
+        }
+
+        // 3. Resetear datos locales
+        this.playerRegistrationData = null;
+
+        // 4. Resetear estado del juego PERO NO la cámara ni sensores
+        this.gameState.isJoined = false;
+        this.gameState.spawns = [];
+        this.gameState.visibleSpawns = [];
+        this.gameState.player.points = 0;
+        this.gameState.player.captures = 0;
+        this.gameState.player.streak = 0;
+        this.gameState.player.bestStreak = 0;
+
+        // 5. 🆕 MANTENER BOTONES DE CÁMARA Y SENSORES EN SU ESTADO ACTUAL
+        // NO resetear this.cameraManager.isActive
+        // NO resetear this.iosPermissions.granted
+
+        // 6. Resetear botón de jugar
+        if (this.elements.joinGameBtn) {
+            this.elements.joinGameBtn.disabled = false;
+            this.elements.joinGameBtn.textContent = '🎮 Jugar';
+            this.elements.joinGameBtn.style.display = 'block';
+        }
+
+        // 7. 🆕 MOSTRAR BOTONES SI ESTABAN OCULTOS (pero mantener su estado)
+        this.showGameButtons();
+
+        // 8. Limpiar AR overlay
+        if (this.elements.arOverlay) {
+            this.elements.arOverlay.innerHTML = '';
+        }
+
+        // 9. Mostrar mensaje de error
+        this.showTemporaryMessage(`❌ ${errorMessage}`, 'error');
+
+        // 10. 📊 MOSTRAR BOTÓN DE ESTADÍSTICAS si corresponde
+        if (!this.gameState.isJoined) {
+            this.createStatsButton();
+        }
+
+        // 11. Actualizar UI
+        this.updatePlayerDisplayInfo();
+
+        // 12. 🆕 PERMITIR RE-REGISTRO: Si hay registration manager, permitir que se abra de nuevo
+        // PERO NO abrirlo automáticamente - esperar que el usuario presione "Registrarse"
+
     }
 
     attemptClassicCapture(method = 'button') {
@@ -1132,7 +1353,7 @@ export class GameClient {
 
     // 6️⃣ Limpiar sesión:
     cleanupGameSession() {
-        console.log('🧹 Limpiando sesión de juego');
+        console.log('🧹 Limpiando sesión de juego - MANTENIENDO cámara y sensores');
         
         // 🆕 DETENER TODOS LOS TIMERS PRIMERO
         this.stopGameTimer();
@@ -1143,7 +1364,7 @@ export class GameClient {
             modal.classList.add('hide');
             setTimeout(() => modal.remove(), 300);
         }
-
+    
         // Limpiar estado del juego pero mantener datos de registro
         this.gameState.isJoined = false;
         this.gameState.spawns = [];
@@ -1152,7 +1373,7 @@ export class GameClient {
         this.gameState.player.captures = 0;
         this.gameState.player.streak = 0;
         this.gameState.player.bestStreak = 0;
-
+    
         // 🆕 RESETEAR ESTADO DEL TIMER
         this.gameState.timer = {
             gameDuration: 3 * 60 * 1000,
@@ -1165,34 +1386,40 @@ export class GameClient {
             inactivityIntervalId: null,
             gameTimeoutId: null
         };
-
+    
         // Limpiar AR overlay
         if (this.elements.arOverlay) {
             this.elements.arOverlay.innerHTML = '';
         }
-
-        // Resetear botones
+    
+        // 🆕 RESETEAR BOTONES PERO MANTENER ESTADO DE CÁMARA
         if (this.elements.joinGameBtn) {
             this.elements.joinGameBtn.disabled = false;
-            this.elements.joinGameBtn.textContent = '🎮 Unirse al Juego';
+            this.elements.joinGameBtn.textContent = '🎮 Jugar';
+            this.elements.joinGameBtn.style.display = 'block';
         }
-
-        // Habilitar botón de cámara si se había deshabilitado
-        if (this.elements.startCameraBtn) {
-            this.elements.startCameraBtn.disabled = false;
-            this.elements.startCameraBtn.textContent = '📱 Activar Cámara';
-        }
-
+    
+        // 🆕 MANTENER ESTADO DE CÁMARA
+        this.updateCameraButtonState();
+    
+        // 📊 MOSTRAR BOTÓN DE ESTADÍSTICAS AL FINALIZAR EL JUEGO
+        setTimeout(() => {
+            this.createStatsButton();
+        }, 1000);
+        
+        // Mostrar nuevamente los botones de cámara y juego (con su estado correcto)
+        this.showGameButtons();
+    
         // Actualizar UI
         this.updateCleanUI();
-
+    
         // Reconectar socket limpiamente si se perdió la conexión
         setTimeout(() => {
             if (!this.socketManager.isConnected) {
                 this.socketManager.forceReconnect();
             }
         }, 1000);
-
+    
         // Mensaje final
         this.showTemporaryMessage('¡Partida finalizada! Puedes iniciar una nueva cuando quieras.', 'success');
     }
@@ -1549,30 +1776,45 @@ export class GameClient {
      * Iniciar sistema de timers (principal + inactividad)
      */
     startGameTimer() {
-    const now = Date.now();
-    this.gameState.timer.startTime = now;
-    this.gameState.timer.lastCaptureTime = now; // Inicializar con tiempo de inicio
-    this.gameState.timer.isActive = true;
+        console.log('⏰ Iniciando timer de juego - El backend validó todo OK');
         
-    // Crear display visual del timer
-    this.createTimerDisplay();
-    
-    // Timer principal - actualizar UI cada segundo
-    this.gameState.timer.gameIntervalId = setInterval(() => {
-        this.updateGameTimer();
-    }, 1000);
-    
-    // Timer de inactividad - chequear cada 30 segundos
-    this.gameState.timer.inactivityIntervalId = setInterval(() => {
-        this.checkInactivity();
-    }, 30000);
-    
-    // Auto-finish por tiempo límite (3 minutos)
-    this.gameState.timer.gameTimeoutId = setTimeout(() => {
-        if (this.gameState.timer.isActive) {
-            this.autoFinishGame('time-limit');
+        const now = Date.now();
+        this.gameState.timer.startTime = now;
+        this.gameState.timer.lastCaptureTime = now; // Inicializar con tiempo de inicio
+        this.gameState.timer.isActive = true;
+
+        // Crear display visual del timer
+        this.createTimerDisplay();
+        
+        // Timer principal - actualizar UI cada segundo
+        this.gameState.timer.gameIntervalId = setInterval(() => {
+            this.updateGameTimer();
+        }, 1000);
+
+        // Timer de inactividad - chequear cada 30 segundos
+        this.gameState.timer.inactivityIntervalId = setInterval(() => {
+            this.checkInactivity();
+        }, 30000);
+
+        // Auto-finish por tiempo límite (3 minutos)
+        this.gameState.timer.gameTimeoutId = setTimeout(() => {
+            if (this.gameState.timer.isActive) {
+                this.autoFinishGame('time-limit');
+            }
+        }, this.gameState.timer.gameDuration);
+    }
+
+
+    updateCameraButtonState() {
+        if (this.elements.startCameraBtn && this.cameraManager) {
+            if (this.cameraManager.isActive) {
+                this.elements.startCameraBtn.textContent = '✅ Cámara Activa';
+                this.elements.startCameraBtn.disabled = true;
+            } else {
+                this.elements.startCameraBtn.textContent = '📱 Activar Cámara';
+                this.elements.startCameraBtn.disabled = false;
+            }
         }
-    }, this.gameState.timer.gameDuration);
     }
 
     /**
@@ -1855,6 +2097,8 @@ export class GameClient {
         document.getElementById('cleanObjectCounter')?.remove();
         document.getElementById('throwModeIndicator')?.remove();
         document.getElementById('iosPermissionBtn')?.remove();
+        // 📊 LIMPIAR BOTÓN DE ESTADÍSTICAS
+        document.getElementById('statsButton')?.remove();
         
         if (window.gameClient === this) {
             window.gameClient = null;

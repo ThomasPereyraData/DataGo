@@ -32,9 +32,12 @@ app.use(express.static(join(__dirname, 'public'), {
   }
 }));
 
-async function sendDisconnection(socketId) {
+//https://api.dataiq.com.ar/datagoapi
+
+async function sendDisconnection(socketId) { 
+
     try {
-        const response = await fetch('https://api.dataiq.com.ar/datagoapi/RegistroUsuario/desactivar', {
+        const response = await fetch('https://z6zgxfjh-9000.brs.devtunnels.ms/api/RegistroUsuario/desactivar', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -413,6 +416,11 @@ io.on('connection', (socket) => {
     const player = gameState.players[socket.id];
     if (player) {
       console.log(`👋 ${player.name} se desconectó`);
+
+      // // 🆕 NO eliminar inmediatamente, marcar como desconectado
+      // player.disconnectedAt = Date.now();
+      // player.isConnected = false;
+      // player.tempSocketId = socket.id; // Guardar para reconexión
       
       gameState.spawns.forEach(spawn => {
         spawn.visibleTo = spawn.visibleTo.filter(id => id !== socket.id);

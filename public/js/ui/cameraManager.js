@@ -51,7 +51,7 @@ export class CameraManager {
             this.validateGetUserMedia();
             const stream = await this.tryMultipleConfigs();
             await this.setupCamera(stream);
-            this.messageManager?.success('¡Cámara activada!');
+            // this.messageManager?.success('¡Cámara activada!');
             
             return true;
             

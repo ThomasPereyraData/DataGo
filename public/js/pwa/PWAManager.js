@@ -107,7 +107,6 @@ export class PWAManager {
         
         // Notificar que PWA está disponible
         if (this.messageManager && !this.state.hasShownPrompt) {
-            this.messageManager.success('✅ ¡App lista para instalar!');
             this.state.hasShownPrompt = true;
         }
     }
@@ -157,9 +156,9 @@ export class PWAManager {
         
         if (isStandalone) {            
             // 🆕 Mensaje especial cuando se detecta PWA
-            if (this.messageManager) {
-                this.messageManager.success('¡Ejecutándose como app instalada! 🎉');
-            }
+            // if (this.messageManager) {
+            //     this.messageManager.success('¡Ejecutándose como app instalada! 🎉');
+            // }
         } else {
         }
         

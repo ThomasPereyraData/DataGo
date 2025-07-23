@@ -32,12 +32,11 @@ app.use(express.static(join(__dirname, 'public'), {
   }
 }));
 
-//https://api.dataiq.com.ar/datagoapi
 
 async function sendDisconnection(socketId) { 
 
     try {
-        const response = await fetch('https://z6zgxfjh-9000.brs.devtunnels.ms/api/RegistroUsuario/desactivar', {
+        const response = await fetch('https://api.dataiq.com.ar/datagoapi/RegistroUsuario/desactivar', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

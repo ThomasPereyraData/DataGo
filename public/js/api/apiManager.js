@@ -3,7 +3,7 @@
 export class ApiManager {
     constructor(messageManager = null) {
         this.messageManager = messageManager;
-        this.baseURL = 'https://z6zgxfjh-9000.brs.devtunnels.ms/api';
+        this.baseURL = 'https://api.dataiq.com.ar/datagoapi';
     }
 
     /**

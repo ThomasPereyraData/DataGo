@@ -1,6 +1,6 @@
 //sw.js
-const CACHE_NAME = 'datago-v1.1.5';
-const STATIC_CACHE = 'datago-static-v1.1.5';
+const CACHE_NAME = 'datago-v3.0.0';
+const STATIC_CACHE = 'datago-static-v3.0.0';
 
 // Archivos que se cachean inmediatamente
 const STATIC_ASSETS = [
@@ -15,7 +15,7 @@ const STATIC_ASSETS = [
 ];
 
 // Archivos que se cachean bajo demanda
-const DYNAMIC_CACHE = 'datago-dynamic-v1.1.5';
+const DYNAMIC_CACHE = 'datago-dynamic-v3.0.0';
 
 // Instalación del Service Worker
 self.addEventListener('install', (event) => {

@@ -567,9 +567,7 @@ export class GameClient {
             return;
         }
         
-        // 🔄 TEMPORAL: Abrir Google hasta que tengas la URL real
-        const statsUrl = `https://mashupdatago-personal.web.app/?user=${encodeURIComponent(registrationData.email)}`;
-        
+        const statsUrl = `https://mashupdatago-personal.web.app/?userMail=${encodeURIComponent(registrationData.email)}&userName=${encodeURIComponent(registrationData.name)}&userLastName=${encodeURIComponent(registrationData.lastName)}`;        
         try {
             // Abrir en navegador externo (sale de la PWA)
             window.open(statsUrl, '_blank');

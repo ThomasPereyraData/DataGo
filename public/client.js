@@ -64,14 +64,14 @@ class DataGoApp {
                 const registration = await navigator.serviceWorker.register('/sw.js');
                                 
                 // Manejar actualizaciones
-                // registration.addEventListener('updatefound', () => {                    
-                //     const newWorker = registration.installing;
-                //     newWorker.addEventListener('statechange', () => {
-                //         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                //             this.showUpdateAvailable(newWorker);
-                //         }
-                //     });
-                // });
+                registration.addEventListener('updatefound', () => {                    
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            this.showUpdateAvailable(newWorker);
+                        }
+                    });
+                });
                 
             } catch (error) {
                 // No es crítico, continúa sin SW
@@ -79,40 +79,6 @@ class DataGoApp {
         } else {
         }
     }
-
-    /**
-     * Mostrar notificación de actualización disponible
-     */
-    // showUpdateAvailable(newWorker) {
-    //     if (this.gameClient?.messageManager) {
-    //         // Crear botón de actualización
-    //         const updateButton = document.createElement('button');
-    //         updateButton.textContent = '🔄 Actualizar App';
-    //         updateButton.style.cssText = `
-    //             position: fixed;
-    //             top: 20px;
-    //             right: 20px;
-    //             z-index: 1000;
-    //             padding: 10px 15px;
-    //             background: #007AFF;
-    //             color: white;
-    //             border: none;
-    //             border-radius: 5px;
-    //             font-size: 14px;
-    //             cursor: pointer;
-    //         `;
-            
-    //         updateButton.onclick = () => {
-    //             newWorker.postMessage({ type: 'SKIP_WAITING' });
-    //             window.location.reload();
-    //         };
-            
-    //         document.body.appendChild(updateButton);
-            
-    //         this.gameClient.messageManager.info('Nueva versión disponible - Toca "Actualizar App"');
-    //     }
-    // }
-
 
     /**
      * Manejar error crítico

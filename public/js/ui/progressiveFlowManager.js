@@ -11,15 +11,14 @@ export class ProgressiveFlowManager {
             currentScreen: 'welcome', // 'welcome' | 'game'
             isRegistered: false,
             isPWA: window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches,
-            registrationData: null
+            registrationData: null,
+            hasShownAutoInstructions: false
         };
         
         // Elementos DOM
         this.elements = {
             welcomeScreen: document.getElementById('welcomeScreen'),
             gameScreen: document.getElementById('gameScreen'),
-            // startRegistrationBtn: document.getElementById('startRegistrationBtn'),
-            pwaPromotion: document.getElementById('pwaPromotion'),
             showPWAInstructionsBtn: document.getElementById('showPWAInstructionsBtn')
         };
         
@@ -34,9 +33,9 @@ export class ProgressiveFlowManager {
      * Inicializar flow manager
      */
     initialize() {
-        
+        console.log('🌟 Inicializando ProgressiveFlowManager');
         this.checkRegistrationStatus();
-        this.setupEventListeners();
+        // this.setupEventListeners();
         this.determineInitialScreen();
         
     }
@@ -64,41 +63,45 @@ export class ProgressiveFlowManager {
     /**
      * Configurar event listeners
      */
-    setupEventListeners() {
-        // COMENTADO: Botón de inicio de registro
-        // this.elements.startRegistrationBtn?.addEventListener('click', () => {
-        //     this.handleStartRegistration();
-        // });
-
-        // Botón de instrucciones PWA
-        this.elements.showPWAInstructionsBtn?.addEventListener('click', () => {
-            this.handleShowPWAInstructions();
-        });
-    }
+    // setupEventListeners() {
+    //     // Botón de instrucciones PWA
+    //     this.elements.showPWAInstructionsBtn?.addEventListener('click', () => {
+    //         this.handleShowPWAInstructions();
+    //     });
+    // }
 
     /**
      * Determinar pantalla inicial según estado
      */
     determineInitialScreen() {
+        console.log('🔍 Determinando pantalla inicial previo')
+        console.log('🔍 Determinando pantalla inicial:', {
+            isPWA: this.state.isPWA,
+            isRegistered: this.state.isRegistered,
+            registrationData: this.state.registrationData
+        });
+        console.log('desde determinate:')
         if (this.state.isPWA) {
             // En PWA: verificar si está registrado
             if (this.state.isRegistered) {
+                console.log('📱 PWA + registrado = ir directo al juego');
                 // PWA + registrado = ir directo al juego
                 this.showGameScreen();
                 this.triggerReadyToPlay();
             } else {
-                // PWA + no registrado = mostrar pantalla de juego con botón registrarse
+                console.log('📱 PWA + no registrado = abrir modal registro');
                 this.showGameScreen();
-                this.showRegisterButton();
+                this.triggerRegistrationFlow();
             }
         } else {
+            console.log('🌐 Navegador detectado');
             // En navegador: verificar si está registrado
             if (this.state.isRegistered) {
                 // Navegador + registrado = mostrar juego + promoción PWA
                 this.showGameScreen();
-                this.showPWAPromotion();
             } else {
                 // Navegador + no registrado = mostrar bienvenida
+                console.log('🌐 Navegador + no registrado = mostrar bienvenida');
                 this.showWelcomeScreen();
             }
         }
@@ -110,7 +113,82 @@ export class ProgressiveFlowManager {
     showWelcomeScreen() {
         this.elements.welcomeScreen.style.display = 'flex';
         this.elements.gameScreen.style.display = 'none';
-        this.state.currentScreen = 'welcome';        
+        this.state.currentScreen = 'welcome'; 
+        // metodo para mostrar instrucciones automaticamente 
+        this.loadDynamicInstructions();
+    }
+
+    loadDynamicInstructions() {
+        const container = this.elements.welcomeScreen;
+        if (!container) return;
+        
+        const browserName = this.detectBrowser();
+        const instructions = this.getInstructionsForBrowser(browserName);
+        
+        // Actualizar el HTML completo de la welcome screen
+        container.innerHTML = `
+            <div class="welcome-container">
+                
+                <div class="welcome-header">
+                    <h1>🎮 DataGo</h1>
+                    <p>Juego de realidad aumentada</p>
+                </div>
+
+                <!-- 🆕 INSTRUCCIONES INTEGRADAS -->
+                <div class="install-steps">
+                    <h3>📋 Cómo instalar en ${this.getBrowserDisplayName(browserName)}:</h3>
+                    <ol class="steps-list">
+                        ${instructions.map(step => `<li>${step}</li>`).join('')}
+                    </ol>
+                </div>
+
+                <!-- 🆕 CALL TO ACTION -->
+                <div class="install-cta">
+                    <div class="cta-icon">✨</div>
+                    <p><strong>¡Una vez instalado, abre DataGo desde tu pantalla de inicio!</strong></p>
+                    <p class="cta-subtitle">Tendrás acceso completo sin necesidad de navegador</p>
+                </div>
+            </div>
+        `;
+    }
+
+    // 🆕 FUNCIÓN HELPER: Nombre amigable del navegador
+    getBrowserDisplayName(browser) {
+        const names = {
+            safari: 'Safari (iOS)',
+            chrome: 'Chrome',
+            firefox: 'Firefox',
+            other: 'tu navegador'
+        };
+        return names[browser] || names.other;
+    }
+
+    /**
+     * Programar instrucciones automáticas
+     */
+    scheduleAutoInstructions() {
+
+        console.log('hasShownAutoInstructions:', this.state.hasShownAutoInstructions);
+        // Solo en navegador (no PWA) y solo una vez
+        if (this.state.isPWA || this.state.hasShownAutoInstructions) {
+            return;
+        }
+        // this.state.hasShownAutoInstructions = true;
+        console.log('viendo en que pantalla estoy: ', this.state.currentScreen);
+        console.log('hasShownAutoInstructions:', this.state.hasShownAutoInstructions);
+
+        // Verificar que seguimos en welcome screen
+        setTimeout(() => {
+            if (this.state.currentScreen === 'welcome' && !this.state.hasShownAutoInstructions) {
+                console.log('📱 Mostrando instrucciones automáticamente');
+                this.state.hasShownAutoInstructions = true;
+                this.handleShowPWAInstructions();
+            }
+        }, 2000);
+
+        console.log('viendo en que pantalla estoy2: ', this.state.currentScreen);
+
+
     }
 
     /**
@@ -126,15 +204,15 @@ export class ProgressiveFlowManager {
     /**
      * Mostrar botón de registro en PWA
      */
-    showRegisterButton() {
-        const registerBtn = document.getElementById('registerBtn');
-        if (registerBtn) {
-            registerBtn.style.display = 'block';
-            registerBtn.onclick = () => {
-                this.handleRegisterClick();
-            };
-        }        
-    }
+    // showRegisterButton() {
+    //     const registerBtn = document.getElementById('registerBtn');
+    //     if (registerBtn) {
+    //         registerBtn.style.display = 'block';
+    //         registerBtn.onclick = () => {
+    //             this.handleRegisterClick();
+    //         };
+    //     }        
+    // }
 
     /**
      * Manejar click en registrarse (PWA)
@@ -159,28 +237,6 @@ export class ProgressiveFlowManager {
         setTimeout(callback, 100);
     }
 
-    /**
-     * Mostrar promoción PWA (solo en navegador)
-     */
-    showPWAPromotion() {
-        if (!this.state.isPWA && this.elements.pwaPromotion) {
-            this.elements.pwaPromotion.style.display = 'block';
-            this.elements.pwaPromotion.classList.remove('hidden');            
-        }
-    }
-
-    /**
-     * Ocultar promoción PWA
-     */
-    hidePWAPromotion() {
-        if (this.elements.pwaPromotion) {
-            this.elements.pwaPromotion.classList.add('hidden');
-            
-            setTimeout(() => {
-                this.elements.pwaPromotion.style.display = 'none';
-            }, 300);
-        }
-    }
 
     /**
      * Manejar inicio de registro
@@ -211,22 +267,14 @@ export class ProgressiveFlowManager {
         localStorage.setItem('datago-registro', JSON.stringify(storageData));
         
         // Ocultar botón de registro si está visible
-        const registerBtn = document.getElementById('registerBtn');
-        if (registerBtn) {
-            registerBtn.style.display = 'none';
-        }
+        // const registerBtn = document.getElementById('registerBtn');
+        // if (registerBtn) {
+        //     registerBtn.style.display = 'none';
+        // }
         
         // Transición a pantalla de juego
         setTimeout(() => {
             this.showGameScreen();
-            
-            if (!this.state.isPWA) {
-                // En navegador: mostrar promoción PWA
-                setTimeout(() => {
-                    this.showPWAPromotion();
-                }, 500);
-            }
-            
             // Notificar que está listo para jugar
             this.triggerReadyToPlay();
             
@@ -244,9 +292,9 @@ export class ProgressiveFlowManager {
         this.state.registrationData = null;
         
         // Mostrar botón de registro si estamos en PWA
-        if (this.state.isPWA && this.state.currentScreen === 'game') {
-            this.showRegisterButton();
-        }
+        // if (this.state.isPWA && this.state.currentScreen === 'game') {
+        //     this.showRegisterButton();
+        // }
         
         // Si estamos en navegador, volver a welcome
         if (!this.state.isPWA) {
@@ -262,7 +310,7 @@ export class ProgressiveFlowManager {
         const browserName = this.detectBrowser();
         const instructions = this.getInstructionsForBrowser(browserName);
         
-        this.showInstructionsModal(instructions);
+        // this.showInstructionsModal(instructions);
     }
 
     /**
@@ -317,60 +365,60 @@ export class ProgressiveFlowManager {
     /**
      * Mostrar modal de instrucciones
      */
-    showInstructionsModal(instructions) {
-        const modal = document.createElement('div');
-        modal.className = 'pwa-instructions-modal show';
+    // showInstructionsModal(instructions) {
+    //     const modal = document.createElement('div');
+    //     modal.className = 'pwa-instructions-modal show';
         
-        modal.innerHTML = `
-            <div class="instructions-content">
-                <div class="instructions-header">
-                    <h3>📱 Instalar DataGo como App</h3>
-                    <button class="close-instructions">✕</button>
-                </div>
-                <div class="instructions-body">
-                    <p><strong>Para la mejor experiencia:</strong></p>
-                    <ol>
-                        ${instructions.map(step => `<li>${step}</li>`).join('')}
-                    </ol>
-                    <p style="margin-top: 15px; opacity: 0.8; font-size: 0.9rem;">
-                        💡 Después podrás jugar desde el icono en tu pantalla de inicio
-                    </p>
-                </div>
-                <div class="instructions-footer">
-                    <button class="got-it-button">Entendido</button>
-                </div>
-            </div>
-        `;
+    //     modal.innerHTML = `
+    //         <div class="instructions-content">
+    //             <div class="instructions-header">
+    //                 <h3>📱 Instalar DataGo como App</h3>
+    //                 <button class="close-instructions">✕</button>
+    //             </div>
+    //             <div class="instructions-body">
+    //                 <p><strong>Para la mejor experiencia:</strong></p>
+    //                 <ol>
+    //                     ${instructions.map(step => `<li>${step}</li>`).join('')}
+    //                 </ol>
+    //                 <p style="margin-top: 15px; opacity: 0.8; font-size: 0.9rem;">
+    //                     💡 Después podrás jugar desde el icono en tu pantalla de inicio
+    //                 </p>
+    //             </div>
+    //             <div class="instructions-footer">
+    //                 <button class="got-it-button">Entendido</button>
+    //             </div>
+    //         </div>
+    //     `;
         
-        // Event listeners
-        modal.querySelector('.close-instructions').addEventListener('click', () => {
-            this.hideInstructionsModal(modal);
-        });
+    //     // Event listeners
+    //     modal.querySelector('.close-instructions').addEventListener('click', () => {
+    //         this.hideInstructionsModal(modal);
+    //     });
         
-        modal.querySelector('.got-it-button').addEventListener('click', () => {
-            this.hideInstructionsModal(modal);
-        });
+    //     modal.querySelector('.got-it-button').addEventListener('click', () => {
+    //         this.hideInstructionsModal(modal);
+    //     });
         
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                this.hideInstructionsModal(modal);
-            }
-        });
+    //     modal.addEventListener('click', (e) => {
+    //         if (e.target === modal) {
+    //             this.hideInstructionsModal(modal);
+    //         }
+    //     });
         
-        document.body.appendChild(modal);
-    }
+    //     document.body.appendChild(modal);
+    // }
 
     /**
      * Ocultar modal de instrucciones
      */
-    hideInstructionsModal(modal) {
-        modal.classList.remove('show');
-        modal.classList.add('hide');
+    // hideInstructionsModal(modal) {
+    //     modal.classList.remove('show');
+    //     modal.classList.add('hide');
         
-        setTimeout(() => {
-            modal.remove();
-        }, 300);
-    }
+    //     setTimeout(() => {
+    //         modal.remove();
+    //     }, 300);
+    // }
 
     // MÉTODOS PARA CALLBACKS
 
@@ -392,8 +440,11 @@ export class ProgressiveFlowManager {
      * Disparar flujo de registro
      */
     triggerRegistrationFlow() {
+        console.log('🚀 Triggering registration flow, callback exists:', !!this.onRegistrationComplete);
         if (this.onRegistrationComplete) {
             this.onRegistrationComplete();
+        } else {
+            console.error('❌ No registration callback configured!');
         }
     }
 

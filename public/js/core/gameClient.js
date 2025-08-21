@@ -27,11 +27,11 @@ export class GameClient {
             totalPlayers: 0,
             // 🆕 NUEVO: Sistema de timers dual
             timer: {
-                gameDuration: 3 * 60 * 1000,      // 3 minutos máximo de partida
-                inactivityTimeout: 2 * 60 * 1000,  // 2 minutos sin capturas = inactivo
+                gameDuration: 1 * 60 * 1000,      // 1 minuto máximo de partida
+                inactivityTimeout: 40 * 1000,  // 40 segundos sin capturas = inactivo
                 startTime: null,
                 lastCaptureTime: null,              // Timestamp de última captura
-                remaining: 3 * 60 * 1000,
+                remaining: 1 * 60 * 1000,
                 isActive: false,
                 gameIntervalId: null,               // Timer principal (countdown visual)
                 inactivityIntervalId: null,         // Timer de inactividad (background)
@@ -101,12 +101,6 @@ export class GameClient {
 
             // Exponer globalmente para debugging
             window.gameClient = this;
-            // TEMPORAL - VERIFICAR MODO
-            // setTimeout(() => {
-            //     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-            //     const isPWA = window.navigator.standalone === true;
-    
-            // }, 2000);
 
         } catch (error) {
             console.error('Initialization error:', error);
@@ -200,11 +194,18 @@ export class GameClient {
 
                 btn.textContent = '✅ Sensores Activados';
                 btn.style.background = 'rgba(48, 209, 88, 0.9)';
-                
+
                 this.showTemporaryMessage('✅ Sensores iOS activados correctamente', 'success');
 
                 // Reinicializar RoomTracker con permisos
                 await this.reinitializeRoomTracker();
+
+                // 🆕 NUEVO: Notificar al modal si está abierto
+                if (this.registrationManager && this.registrationManager.state.isVisible) {
+                    setTimeout(() => {
+                        this.registrationManager.updatePermissionButtonStates();
+                    }, 500);
+                }
 
                 // Ocultar botón después de un tiempo
                 setTimeout(() => {
@@ -219,7 +220,14 @@ export class GameClient {
                 btn.disabled = false;
 
                 this.showTemporaryMessage('❌ Permisos denegados. Ve a Configuración > Safari > Sensores de Movimiento', 'error');
-                
+
+                // 🆕 NUEVO: También notificar en caso de error
+                if (this.registrationManager && this.registrationManager.state.isVisible) {
+                    setTimeout(() => {
+                        this.registrationManager.updatePermissionButtonStates();
+                    }, 500);
+                }
+
                 // Mostrar modo de respaldo
                 this.showFallbackOption();
             }
@@ -227,8 +235,15 @@ export class GameClient {
         } catch (error) {            
             btn.textContent = '❌ Error - Reintentar';
             btn.disabled = false;
-            
+
             this.showTemporaryMessage('❌ Error solicitando permisos. Inténtalo de nuevo.', 'error');
+
+            // 🆕 NUEVO: También notificar en caso de error catch
+            if (this.registrationManager && this.registrationManager.state.isVisible) {
+                setTimeout(() => {
+                    this.registrationManager.updatePermissionButtonStates();
+                }, 500);
+            }
         }
     }
 
@@ -567,7 +582,7 @@ export class GameClient {
             return;
         }
         
-        const statsUrl = `https://mashupdatago-personal.web.app/?userMail=${encodeURIComponent(registrationData.email)}&userName=${encodeURIComponent(registrationData.name)}&userLastName=${encodeURIComponent(registrationData.lastName)}`;        
+        const statsUrl = `https://mashup-personal-dg.web.app/?userMail=${encodeURIComponent(registrationData.email)}&userName=${encodeURIComponent(registrationData.name)}&userLastName=${encodeURIComponent(registrationData.lastName)}`;        
         try {
             // Abrir en navegador externo (sale de la PWA)
             window.open(statsUrl, '_blank');
@@ -610,12 +625,16 @@ export class GameClient {
         
         // 🆕 Configurar callbacks del flow manager
         this.progressiveFlowManager.setOnRegistrationComplete(() => {
+            console.log('📝 Registration callback called from GameClient');
             this.handleRegistrationFlowTriggered();
         });
 
         this.progressiveFlowManager.setOnReadyToPlay((registrationData) => {
             this.handleReadyToPlay(registrationData);
         });
+
+        // AHORA SÍ determinar pantalla inicial
+        this.progressiveFlowManager.determineInitialScreen();
 
         // Solo inicializar otros managers si estamos en pantalla de juego
         if (this.progressiveFlowManager.getCurrentScreen() === 'game') {
@@ -869,24 +888,47 @@ export class GameClient {
      */
     generateWorldPosition(spawn) {
         const playerPos = this.roomTracker.getPosition();
-        
+ 
         // distribución más amplia alrededor del jugador
         const angle = Math.random() * 2 * Math.PI;
         const distance = 4.0 + Math.random() * 2.0; // Entre 4.0-6.0 metros
-        
+ 
         // algunos objetos más lejos para mayor variedad
         const isDistantObject = Math.random() < 0.3; // 30% de objetos distantes
         const finalDistance = isDistantObject ? distance + 1.0 : distance;
-        
+ 
         const worldX = playerPos.x + Math.cos(angle) * finalDistance;
         const worldY = playerPos.y + Math.sin(angle) * finalDistance;
-        
+ 
         return {
             x: Math.max(0.3, Math.min(4.7, worldX)), // Usar más espacio de la sala
             y: Math.max(0.3, Math.min(4.7, worldY))
         };
     }
 
+
+    // generateWorldPosition(spawn) {
+    //     const playerPos = this.roomTracker.getPosition();
+        
+    //     // 🆕 NUEVA DISTRIBUCIÓN: Evitar objetos en centro de pantalla
+    //     const angle = Math.random() * 2 * Math.PI;
+    //     const minDistance = 2.5; // 🆕 Distancia mínima más grande
+    //     const maxDistance = 6.0; // 🆕 Aprovechar sala más grande
+        
+    //     // 🆕 DISTRIBUCIÓN NO UNIFORME: Más objetos lejos que cerca
+    //     const distanceRandom = Math.random();
+    //     const distance = distanceRandom < 0.3 ? 
+    //         minDistance + Math.random() * 1.5 :  // 30% cerca (2.5-4.0m)
+    //         4.0 + Math.random() * 2.0;           // 70% lejos (4.0-6.0m)
+        
+    //     const worldX = playerPos.x + Math.cos(angle) * distance;
+    //     const worldY = playerPos.y + Math.sin(angle) * distance;
+        
+    //     return {
+    //         x: Math.max(0.5, Math.min(7.5, worldX)), // 🆕 Nuevos límites para sala 8x8
+    //         y: Math.max(0.5, Math.min(7.5, worldY))
+    //     };
+    // }
     /**
      * Manejar spawn oculto
      */
@@ -974,9 +1016,9 @@ export class GameClient {
         setTimeout(() => {
             this.updatePlayerDisplayInfo();
         }, 100);
-
         // Datos para el backend
         this.progressiveFlowManager.handleRegistrationCompleted(playerData);
+
     }
 
     async handleReadyToPlay(registrationData) {        
@@ -1072,9 +1114,38 @@ export class GameClient {
                 registrationData: registrationData
             });
 
+
             if (success) {
                 this.gameState.isJoined = true;
                 this.gameState.player.joinedAt = Date.now();
+
+                // 🐛 DEBUG: Más información sobre el modal
+                if (this.registrationManager) {
+                    console.log('🔍 DEBUG Modal - Existe:', !!this.registrationManager);
+                    console.log('🔍 DEBUG Modal - Visible según estado:', this.registrationManager.state?.isVisible);
+                    console.log('🔍 DEBUG Modal - Overlay existe:', !!this.registrationManager.elements?.overlay);
+                    console.log('🔍 DEBUG Modal - Clases CSS:', this.registrationManager.elements?.overlay?.className);
+
+                    if (this.registrationManager.state.isVisible) {
+                        console.log('✅ Juego iniciado exitosamente, cerrando modal');
+
+                        // 🆕 FORZAR CIERRE MÁS AGRESIVO
+                        const overlay = this.registrationManager.elements.overlay;
+                        if (overlay) {
+                            overlay.classList.remove('show');
+                            overlay.classList.add('hide');
+                            overlay.style.display = 'none';
+                            overlay.style.visibility = 'hidden';
+                            overlay.style.opacity = '0';
+                            overlay.style.zIndex = '-1';
+                        }
+
+                        this.registrationManager.state.isVisible = false;
+                        console.log('🚪 Modal forzadamente cerrado con múltiples métodos');
+                    } else {
+                        console.log('⚠️ Modal ya reporta como no visible, pero tal vez sigue en pantalla');
+                    }
+                }
 
                 // 📊 OCULTAR BOTÓN DE ESTADÍSTICAS DURANTE EL JUEGO
                 this.hideStatsButton();
@@ -1085,13 +1156,18 @@ export class GameClient {
                 this.elements.joinGameBtn.textContent = '✅ En Juego';
                 this.elements.joinGameBtn.disabled = true;
 
+                if (this.registrationManager && !this.registrationManager.state.isVisible) {
+                    console.log('✅ Juego iniciado exitosamente, cerrando modal');
+                    this.registrationManager.forceHide();
+                }
+
                 // 🆕 SOLO AHORA INICIAR TIMER (después de que todo salió bien)
                 setTimeout(() => {
                     this.startGameTimer();
                 }, 1000);
 
                 setTimeout(() => {
-                    this.showTemporaryMessage('¡3 minutos para conseguir los máximos puntos!', 'info');
+                    this.showTemporaryMessage('¡1 minuto para conseguir los máximos puntos!', 'info');
                 }, 2000);
 
             } else {
@@ -1104,16 +1180,69 @@ export class GameClient {
         } catch (error) {
             console.error('❌ Error en proceedWithGameJoin:', error);
 
-            // 🆕 Si es error 400 (validación), resetear registro PERO mantener cámara/sensores
-            if (error.message.includes('400') || error.message.includes('validación')) {
+            // 🆕 NUEVO: Diferenciar tipos de error
+            if (this.isRegistrationError(error.message)) {
+                // Solo errores de REGISTRO borran datos
+                console.log('🚫 Error de registro detectado, reseteando datos');
                 this.handleRegistrationValidationError(error.message);
             } else {
-                // Otros errores
-                this.elements.joinGameBtn.disabled = false;
-                this.elements.joinGameBtn.textContent = '🎮 Jugar';
-                this.showTemporaryMessage(`❌ ${error.message}`, 'error');
+                // Errores de EVENTOS/SERVIDOR no borran registro
+                console.log('⚠️ Error de servidor/eventos, manteniendo registro');
+                this.handleServerError(error.message);
             }
         }
+    }
+
+    // 🆕 FUNCIÓN MEJORADA: Detectar si es error de registro
+    isRegistrationError(errorMessage) {
+        const lowerMessage = errorMessage.toLowerCase();
+
+        // 🎯 ERRORES DE EVENTOS (NO son errores de registro)
+        const eventErrors = [
+            'no hay eventos activos',
+            'en este momento.',
+            'evento no creado',
+            'eventos creados',
+            'evento no encontrado'
+        ];
+
+        // Si es error de eventos, NO es error de registro
+        if (eventErrors.some(keyword => lowerMessage.includes(keyword))) {
+            return false;
+        }
+
+        // 🎯 ERRORES DE REGISTRO (SÍ borran datos)
+        const registrationErrors = [
+            'email debe ser corporativo',
+            'gmail',
+            'hotmail',
+            'datos de registro faltantes',
+            'usuario no válido',
+            'email inválido'
+        ];
+
+        return registrationErrors.some(keyword => lowerMessage.includes(keyword));
+    }
+
+    handleServerError(errorMessage) {
+        console.log('🔧 Manejando error de servidor sin borrar registro');
+        
+        // Resetear botón de jugar
+        if (this.elements.joinGameBtn) {
+            this.elements.joinGameBtn.disabled = false;
+            this.elements.joinGameBtn.textContent = '🎮 Jugar';
+        }
+        
+        // Mostrar mensaje de error específico
+        if (errorMessage.includes('evento') || errorMessage.includes('creado')) {
+            this.showTemporaryMessage('❌ No hay eventos activos en este momento. Disfruta de las charlas, nos vemos pronto.', 'error');
+        } else {
+            this.showTemporaryMessage(`❌ ${errorMessage}`, 'error');
+        }
+        
+        // NO borrar datos de registro
+        // NO resetear localStorage
+        // NO resetear playerRegistrationData
     }
 
     async sendRegistrationToBackend(registrationData) {
@@ -1146,7 +1275,7 @@ export class GameClient {
             if (error.isValidationError && error.status === 400) {
                 return { 
                     success: false, 
-                    error: `Error de validación (400): ${error.message}. Verifica tu email.`
+                    error: `Error de validación: ${error.message}.`
                 };
             }
 
@@ -1155,10 +1284,7 @@ export class GameClient {
                 error: error.message || 'Error de conexión con el servidor'
             };
         }
-    }
-
-
-    
+    }    
 
     /**
     * Manejar error de validación de registro
@@ -1211,6 +1337,16 @@ export class GameClient {
         // 9. Mostrar mensaje de error
         this.showTemporaryMessage(`❌ ${errorMessage}`, 'error');
 
+        if (this.registrationManager && this.registrationManager.state.isVisible) {
+            console.log('📝 Regresando al formulario de registro con error');
+            this.registrationManager.resetToRegistrationWithError(errorMessage);
+        } else {
+            // Si el modal no está visible, mostrarlo desde cero
+            if (this.registrationManager) {
+                this.registrationManager.resetToRegistrationWithError(errorMessage);
+            }
+        }
+
         // 10. 📊 MOSTRAR BOTÓN DE ESTADÍSTICAS si corresponde
         if (!this.gameState.isJoined) {
             this.createStatsButton();
@@ -1218,9 +1354,6 @@ export class GameClient {
 
         // 11. Actualizar UI
         this.updatePlayerDisplayInfo();
-
-        // 12. 🆕 PERMITIR RE-REGISTRO: Si hay registration manager, permitir que se abra de nuevo
-        // PERO NO abrirlo automáticamente - esperar que el usuario presione "Registrarse"
 
     }
 
@@ -1374,11 +1507,11 @@ export class GameClient {
     
         // 🆕 RESETEAR ESTADO DEL TIMER
         this.gameState.timer = {
-            gameDuration: 3 * 60 * 1000,
-            inactivityTimeout: 2 * 60 * 1000,
+            gameDuration: 1 * 60 * 1000,
+            inactivityTimeout: 40 * 1000,
             startTime: null,
             lastCaptureTime: null,
-            remaining: 3 * 60 * 1000,
+            remaining: 1 * 60 * 1000,
             isActive: false,
             gameIntervalId: null,
             inactivityIntervalId: null,
@@ -1781,6 +1914,8 @@ export class GameClient {
         this.gameState.timer.lastCaptureTime = now; // Inicializar con tiempo de inicio
         this.gameState.timer.isActive = true;
 
+        console.log('🎯 Timer iniciado - startTime:', now, 'lastCaptureTime:', this.gameState.timer.lastCaptureTime);
+
         // Crear display visual del timer
         this.createTimerDisplay();
         
@@ -1792,7 +1927,7 @@ export class GameClient {
         // Timer de inactividad - chequear cada 30 segundos
         this.gameState.timer.inactivityIntervalId = setInterval(() => {
             this.checkInactivity();
-        }, 30000);
+        }, 10000);
 
         // Auto-finish por tiempo límite (3 minutos)
         this.gameState.timer.gameTimeoutId = setTimeout(() => {
@@ -1855,12 +1990,12 @@ export class GameClient {
     
     const now = Date.now();
     const timeSinceLastCapture = now - this.gameState.timer.lastCaptureTime;
-    const minutesSinceCapture = Math.round(timeSinceLastCapture / 60000);
+    // const minutesSinceCapture = Math.round(timeSinceLastCapture / 60000);
     
-    console.log(`🕐 Tiempo desde última captura: ${minutesSinceCapture} minutos`);
+    // console.log(`🕐 Tiempo desde última captura: ${minutesSinceCapture} minutos`);
     
     if (timeSinceLastCapture >= this.gameState.timer.inactivityTimeout) {
-        console.log('😴 Usuario inactivo por 2 minutos, finalizando partida');
+        console.log('😴 Usuario inactivo por 40 segundos, finalizando partida');
         this.autoFinishGame('inactivity');
     }
     }
@@ -1907,6 +2042,16 @@ export class GameClient {
      * Finalización automática por timer o inactividad
      */
     async autoFinishGame(reason = 'time-limit') {
+
+        console.log(`😴 Auto-finalizando por: ${reason}`);
+
+        // 🆕 FORZAR CIERRE DEL MODAL DE REGISTRO PRIMERO
+        if (this.registrationManager && this.registrationManager.state.isVisible) {
+            console.log('🚪 Cerrando modal de registro antes de mostrar finalización');
+            this.registrationManager.elements.overlay.classList.remove('show');
+            this.registrationManager.elements.overlay.style.display = 'none';
+            this.registrationManager.state.isVisible = false;
+        }
     
         // Detener todos los timers
         this.stopGameTimer();
@@ -1930,7 +2075,7 @@ export class GameClient {
         timerDisplay.className = 'game-timer';
         timerDisplay.innerHTML = `
             <div class="timer-circle">
-                <div class="timer-text">3:00</div>
+                <div class="timer-text">1:00</div>
                 <div class="timer-label">restante</div>
             </div>
         `;
@@ -1951,13 +2096,13 @@ export class GameClient {
     switch(reason) {
         case 'time-limit':
             title = '⏰ ¡Tiempo Agotado!';
-            message = 'Completaste los 3 minutos de juego';
+            message = 'Completaste el minuto de juego';
             icon = '⏰';
             break;
             
         case 'inactivity':
             title = '😴 Partida Finalizada';
-            message = 'No se detectaron capturas en los últimos 2 minutos';
+            message = 'No se detectaron capturas en los últimos 40 segundos';
             icon = '😴';
             break;
             

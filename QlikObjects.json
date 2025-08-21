@@ -22,17 +22,17 @@
   "objects": [
     {
       "id": 1,
-      "name": "Logo DataIQ",
-      "image": "common/LogoData.png",
-      "points": 5,
-      "rarity": "common",
-      "description": "Logo de DataIQ"
+      "name": "IQU Tirado",
+      "image": "epic/IQU_tirado.png",
+      "points": 25,
+      "rarity": "epic",
+      "description": "IQU Tirado"
     },
     {
       "id": 2,
       "name": "IQU Fiesta",
       "image": "common/IQU_fiesta.png",
-      "points": 5,
+      "points": 25,
       "rarity": "common",
       "description": "IQU en modo fiesta"
     },
@@ -40,25 +40,25 @@
       "id": 3,
       "name": "IQU Saluda",
       "image": "common/IQU_saluda.png",
-      "points": 5,
+      "points": 25,
       "rarity": "common",
       "description": "IQU saludando"
     },
     {
       "id": 4,
-      "name": "Logo Qlik",
-      "image": "rare/QlikLogo.png",
-      "points": 10,
+      "name": "Logo Data",
+      "image": "rare/LogoData.png",
+      "points": 75,
       "rarity": "rare",
-      "description": "Logo de Qlik"
+      "description": "Logo de Data"
     },
     {
       "id": 5,
-      "name": "IQU Tirado",
-      "image": "epic/IQU_tirado.png",
-      "points": 25,
-      "rarity": "epic",
-      "description": "IQU"
+      "name": "Logo Qlik",
+      "image": "common/QlikLogo.png",
+      "points": 100,
+      "rarity": "common",
+      "description": "Logo de Qlik"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
-  "name": "DataGo",
-  "short_name": "DataGo",
+  "name": "Data Go",
+  "short_name": "Data Go",
   "description": "Juego de realidad aumentada para capturar objetos en tiempo real",
   "start_url": "/",
   "display": "standalone",

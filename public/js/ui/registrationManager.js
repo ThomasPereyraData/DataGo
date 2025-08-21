@@ -1,7 +1,4 @@
 // public/js/ui/RegistrationManager.js - FIXED PARA PWA iOS
-
-import { Utils } from "../utils/utils.js";
-
 export class RegistrationManager {
     constructor(messageManager = null) {
         this.messageManager = messageManager;
@@ -11,7 +8,8 @@ export class RegistrationManager {
             isVisible: false,
             isSubmitting: false,
             playerData: null,
-            isPWA: window.navigator.standalone === true // Detectar PWA
+            isPWA: window.navigator.standalone === true, // Detectar PWA
+            currentStep: 'registration'
         };
         
         // Elementos DOM (ya existen en HTML)
@@ -159,11 +157,13 @@ export class RegistrationManager {
         // Mostrar overlay
         this.elements.overlay.classList.add('show');
         this.state.isVisible = true;
+        console.log('verificando si es visible el form', this.state.isVisible)
         
         // Focus diferente para PWA vs Browser
         if (this.state.isPWA) {
-            // En PWA, no hacer focus automático - esperar tap del usuario
-            console.log('📱 PWA detectada, sin focus automático');
+            setTimeout(() => {
+                this.elements.nameInput.focus();
+            }, 350);
         } else {
             // En browser normal, focus automático
             setTimeout(() => {
@@ -217,6 +217,9 @@ export class RegistrationManager {
             if (emailInput && emailError) {
                 emailInput.classList.add('error');
                 emailError.textContent = errorMessage;
+                if(errorMessage.includes('eventos activos')) {
+                    emailError.textContent = 'No hay eventos activos. Disfruta de las charlas, enseguida volvemos'
+                }
                 emailError.style.display = 'block';
 
                 // Focus en el campo email para que el usuario pueda corregir
@@ -239,6 +242,106 @@ export class RegistrationManager {
             this.ensureFormCanSubmit();
 
         }, 100);
+    }
+
+    resetToRegistrationWithError(errorMessage) {
+        console.log('🔄 Volviendo a registro desde paso:', this.state.currentStep);
+        
+        // 1. Resetear paso
+        this.state.currentStep = 'registration';
+
+        //1.1 resetear estado de submitting
+        this.state.isSubmitting = false;
+        
+        // 2. Asegurar que el modal esté visible
+        if (!this.state.isVisible) {
+            this.elements.overlay.classList.add('show');
+            this.state.isVisible = true;
+        }
+        
+        // 3. Recrear formulario de registro
+        this.renderRegistrationFormHTML();
+        
+        // 4. Esperar a que el DOM se actualice y LUEGO mostrar error
+        setTimeout(() => {
+            // Verificar que el elemento existe antes de mostrar error
+            const emailError = document.getElementById('emailError');
+            const emailInput = document.getElementById('playerEmail');
+            
+            if (emailError && emailInput) {
+                if(errorMessage.includes('eventos activos')) {
+                    emailError.textContent = 'No hay eventos activos. Disfruta de las charlas, enseguida volvemos';
+                } else {
+                    emailError.textContent = errorMessage;
+                }
+                emailError.style.display = 'block';
+                emailInput.classList.add('error');
+                
+                // Focus solo si el elemento existe
+                setTimeout(() => {
+                    emailInput.focus();
+                    emailInput.select();
+                }, 50);
+            } else {
+                console.error('❌ No se encontraron elementos de email');
+            }
+            const submitBtn = document.getElementById('submitRegistration');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('submitting');
+            
+            const btnText = submitBtn.querySelector('.btn-text');
+            const btnSpinner = submitBtn.querySelector('.btn-spinner');
+            if (btnText) btnText.style.display = 'inline';
+            if (btnSpinner) btnSpinner.style.display = 'none';
+        }
+        }, 200); // Más tiempo para que el DOM se actualice
+
+        
+    }
+
+    // 🆕 FUNCIÓN HELPER - Recrear HTML del formulario de registro
+    renderRegistrationFormHTML() {
+        const form = this.elements.form;
+        if (!form) return;
+
+        form.innerHTML = `
+            <div class="form-header">
+                <h2>📝 Registro DataGo</h2>
+                <p>Completa tus datos para comenzar</p>
+            </div>
+
+            <div class="form-body">
+                <div class="form-group">
+                    <label for="playerName">Nombre</label>
+                    <input type="text" id="playerName" name="name" placeholder="Tu nombre" required>
+                    <div class="error-message" id="nameError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="playerLastName">Apellido</label>
+                    <input type="text" id="playerLastName" name="lastName" placeholder="Tu apellido" required>
+                    <div class="error-message" id="lastNameError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="playerEmail">Email</label>
+                    <input type="email" id="playerEmail" name="email" placeholder="tu@email.com" required>
+                    <div class="error-message" id="emailError"></div>
+                </div>
+            </div>
+
+            <div class="form-footer">
+                <button type="submit" class="submit-btn" id="submitRegistration">
+                    <span class="btn-text">✅ Completar Registro</span>
+                    <span class="btn-spinner" style="display: none;">⏳</span>
+                </button>
+                <p class="form-note">* Todos los campos son obligatorios</p>
+            </div>
+        `;
+
+        // Reconfigurar event listeners
+        this.setupFormEventListeners();
     }
 
     ensureFormCanSubmit() {
@@ -274,10 +377,18 @@ export class RegistrationManager {
     }
 
     setupFormEventListeners() {
+
+        console.log('🐛 DEBUG: setupFormEventListeners ejecutándose, paso actual:', this.state.currentStep);
+
+        // 🆕 CRITICAL: Remover listeners anteriores para evitar duplicados
+        const newForm = this.elements.form.cloneNode(true);
+        this.elements.form.parentNode.replaceChild(newForm, this.elements.form);
+        this.elements.form = newForm;
+
         // Submit del formulario
         this.elements.form.addEventListener('submit', (e) => {
             e.preventDefault();
-            console.log('📝 Form submit interceptado');
+            console.log('📝 Form submit interceptado - UNICO listener');
             this.handleSubmit();
         });
         
@@ -310,10 +421,40 @@ export class RegistrationManager {
      * Ocultar formulario
      */
     hide() {
-        if (!this.state.isVisible) return;
+        console.log('🚪 Intentando cerrar modal. Estado actual:', this.state.isVisible);
+
+        //if (!this.state.isVisible) return;
+        console.log('🚪 Procediendo a cerrar modal');
         
         this.elements.overlay.classList.remove('show');
+        this.elements.overlay.classList.add('hide');
+
+        // 🆕 TAMBIÉN forzar display none como backup
+        setTimeout(() => {
+            this.elements.overlay.style.display = 'none';
+        }, 300);
+        
         this.state.isVisible = false;
+        console.log('🚪 Modal cerrado. Nuevo estado:', this.state.isVisible);
+
+
+        this.restoreExternalButtons();
+    }
+
+    forceHide() {
+        console.log('🚪 Forzando cierre del modal');
+        
+        // Forzar clase CSS sin verificar estado
+        this.elements.overlay.classList.remove('show');
+        this.elements.overlay.classList.add('hide'); // Si tienes esta clase
+        
+        // Actualizar estado
+        this.state.isVisible = false;
+        
+        // También forzar display none como backup
+        setTimeout(() => {
+            this.elements.overlay.style.display = 'none';
+        }, 300);
     }
 
     /**
@@ -321,9 +462,16 @@ export class RegistrationManager {
      */
     async handleSubmit() {
         console.log('🚀 Iniciando handleSubmit...');
-        
+        console.log('isVisible desde handleSubmit: ', this.state.isVisible);
+
         if (this.state.isSubmitting) {
             console.log('⚠️ Ya está en proceso de submit, ignorando...');
+            return;
+        }
+
+        // 🆕 NUEVO GUARD: Solo procesar si está en paso de registro
+        if (this.state.currentStep !== 'registration') {
+            console.log('⚠️ No estamos en paso de registro, ignorando submit...');
             return;
         }
 
@@ -350,19 +498,264 @@ export class RegistrationManager {
 
             console.log('✅ Datos guardados localmente');
 
+            // siguiente paso en vez de cerrar
+            this.state.currentStep = 'permissions'
+            this.showPermissionsStep()
+
             // Callback
             if (this.onRegistrationSuccess) {
                 this.onRegistrationSuccess(formData);
             }
 
             // Ocultar formulario
-            this.hide();
+            //this.hide();
 
         } catch (error) {
             console.error('❌ Error en handleSubmit:', error);
             this.messageManager?.error('Error en registro de usuario');
             this.setSubmittingState(false);
         }
+    }
+
+    // Nueva función después de handleSubmit()
+    showPermissionsStep() {
+        console.log('📱 Mostrando paso de permisos');
+        
+        const form = this.elements.form;
+        if (!form) return;
+
+        // 🆕 Detectar qué botones mostrar
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const gameClient = this.getGameClient();
+
+        // Transformar el contenido del modal
+        form.innerHTML = `
+            <div class="permissions-step">
+                <div class="form-header">
+                    <h2>¡Registrado! 🎉</h2>
+                    <p>Configuremos tu dispositivo para jugar</p>
+                </div>
+
+                <div class="form-body">
+                    <div class="permissions-list">
+                        <button  type=button id="modalCameraBtn" class="permission-btn">
+                            📱 Activar Cámara
+                        </button>
+
+                        ${isIOS && !gameClient?.iosPermissions?.granted ? `
+                            <button id="modalSensorsBtn" type=button class="permission-btn">
+                                🔄 Activar Sensores iOS
+                            </button>
+                        ` : ''}
+                        
+                        <button type=button id="modalStartGameBtn" class="submit-btn" disabled>
+                            🎮 ¡Comenzar a Jugar!
+                        </button>
+                    </div>
+                </div>
+                        
+                <div class="form-footer">
+                    <p class="form-note">Activa los permisos necesarios para la mejor experiencia</p>
+                </div>
+            </div>
+        `;
+
+        // 🆕 CONFIGURAR EVENT LISTENERS
+        this.setupPermissionEventListeners();
+                        
+        // 🆕 ACTUALIZAR ESTADOS INICIALES
+        this.updatePermissionButtonStates();
+
+        this.hideExternalButtons();
+    }
+
+    hideExternalButtons() {
+        const gameClient = this.getGameClient();
+        if (!gameClient) return;
+
+        // Ocultar botones externos
+        if (gameClient.elements.startCameraBtn) {
+            gameClient.elements.startCameraBtn.style.display = 'none';
+        }
+        if (gameClient.elements.joinGameBtn) {
+            gameClient.elements.joinGameBtn.style.display = 'none';
+        }
+
+        // También ocultar botón de sensores iOS si existe
+        const iosBtn = document.getElementById('iosPermissionBtn');
+        if (iosBtn) {
+            iosBtn.style.display = 'none';
+        }
+    }
+
+    restoreExternalButtons() {
+        const gameClient = this.getGameClient();
+        if (!gameClient) return;
+
+        // 🎯 LÓGICA INTELIGENTE: Solo mostrar botones que falten
+        
+        // 1. Cámara: Solo mostrar si NO está activa
+        if (gameClient.elements.startCameraBtn) {
+            if (!gameClient.cameraManager?.isActive) {
+                gameClient.elements.startCameraBtn.style.display = 'block';
+            } else {
+                gameClient.elements.startCameraBtn.style.display = 'none';
+            }
+        }
+
+        // 2. Sensores iOS: Solo mostrar si es iOS Y no están activos
+        const iosBtn = document.getElementById('iosPermissionBtn');
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+        if (isIOS && !gameClient.iosPermissions?.granted) {
+            // Si el botón no existe, crearlo (porque el modal lo ocultó)
+            if (!iosBtn) {
+                gameClient.checkiOSPermissions(); // Recrear botón iOS
+            } else {
+                iosBtn.style.display = 'block';
+            }
+        }
+
+        // 3. Jugar: Siempre mostrar (pero estado según permisos)
+        if (gameClient.elements.joinGameBtn) {
+            gameClient.elements.joinGameBtn.style.display = 'block';
+
+            // Habilitar solo si tiene permisos necesarios
+            const hasCamera = gameClient.cameraManager?.isActive;
+            const hasConnection = gameClient.socketManager?.isConnected;
+
+            gameClient.elements.joinGameBtn.disabled = !(hasCamera && hasConnection);
+        }
+    }        
+
+    getGameClient() {
+        return window.gameClient || window.dataGoApp?.gameClient;
+    }
+
+    setupPermissionEventListeners() {
+        const cameraBtn = document.getElementById('modalCameraBtn');
+        const sensorsBtn = document.getElementById('modalSensorsBtn');
+        const startBtn = document.getElementById('modalStartGameBtn');
+        
+        const gameClient = this.getGameClient();
+        if (!gameClient) {
+            console.error('❌ GameClient no disponible');
+            return;
+        }
+
+        // 🎯 REUTILIZAR: Botón de cámara
+        if (cameraBtn) {
+            cameraBtn.addEventListener('click', async () => {
+                cameraBtn.textContent = '⏳ Activando...';
+                cameraBtn.disabled = true;
+
+                // Llamar función existente del GameClient
+                await gameClient.handleStartCamera();
+
+                // Actualizar estados después
+                setTimeout(() => {
+                    this.updatePermissionButtonStates();
+                }, 500);
+            });
+        }
+
+        // 🎯 REUTILIZAR: Botón de sensores iOS
+        if (sensorsBtn) {
+            sensorsBtn.addEventListener('click', async () => {
+                sensorsBtn.textContent = '⏳ Solicitando...';
+                sensorsBtn.disabled = true;
+
+                // Llamar función existente del GameClient
+                await gameClient.requestiOSPermissions();
+
+                // Actualizar estados después
+                setTimeout(() => {
+                    this.updatePermissionButtonStates();
+                }, 1000);
+            });
+        }
+
+        // 🎯 REUTILIZAR: Botón de iniciar juego
+        if (startBtn) {
+            startBtn.addEventListener('click', async () => {
+                console.log('🎮 Botón modal presionado - forzando cierre');
+
+                // // Cerrar modal y llamar función existente
+                // this.hide();
+
+                // console.log('🎮 Modal forzadamente cerrado, iniciando juego...');
+
+                // // Pequeño delay para que la animación de cierre se vea
+                // setTimeout(() => {
+                //     gameClient.proceedWithGameJoin();
+                // }, 100);
+
+                // 🆕 NO cerrar modal inmediatamente - esperar resultado
+                try {
+                    // Llamar al GameClient y esperar resultado
+                    await gameClient.proceedWithGameJoin();
+
+                    // 🆕 SOLO cerrar modal si todo salió bien
+                    // (proceedWithGameJoin debería notificar éxito/error)
+
+                } catch (error) {
+                    console.error('❌ Error en proceso de juego:', error);
+                    // No cerrar modal en caso de error
+                }
+            });
+        }
+    }
+
+
+
+    updatePermissionButtonStates() {
+        console.log('🔄 updatePermissionButtonStates ejecutándose');
+        const gameClient = this.getGameClient();
+        if (!gameClient) return;
+
+        const cameraBtn = document.getElementById('modalCameraBtn');
+            const sensorsBtn = document.getElementById('modalSensorsBtn');
+
+        const startBtn = document.getElementById('modalStartGameBtn');
+
+        // Actualizar botón de cámara
+        if (cameraBtn) {
+            if (gameClient.cameraManager?.isActive) {
+                cameraBtn.textContent = '✅ Cámara Activa';
+                cameraBtn.disabled = true;
+                cameraBtn.style.background = 'rgba(48, 209, 88, 0.9)';
+            } else {
+                cameraBtn.textContent = '📱 Activar Cámara';
+                cameraBtn.disabled = false;
+            }
+        }
+        if (sensorsBtn) {
+            if (gameClient.iosPermissions?.granted) {
+                sensorsBtn.textContent = '✅ Sensores Activos';
+                sensorsBtn.disabled = true;
+                sensorsBtn.style.background = 'rgba(48, 209, 88, 0.9)';
+            } else {
+                sensorsBtn.textContent = '🔄 Activar Sensores iOS';
+                sensorsBtn.disabled = false;
+                sensorsBtn.style.background = '';
+            }
+        }
+
+        if (startBtn) {
+            const hasCamera = gameClient.cameraManager?.isActive;
+            const hasConnection = gameClient.socketManager?.isConnected;
+            const needsSensors = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const hasSensors = !needsSensors || gameClient.iosPermissions?.granted;
+
+            if (hasCamera && hasConnection && hasSensors) {
+                startBtn.disabled = false;
+                startBtn.style.background = 'linear-gradient(135deg, #30D158, #28B946)';
+            } else {
+                startBtn.disabled = true;
+                startBtn.style.background = '';
+            }
+        }
+
     }
 
     /**

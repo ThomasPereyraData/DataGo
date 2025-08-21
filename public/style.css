@@ -1587,3 +1587,155 @@ button[onclick*="localStorage.clear"] {
     }
 }
 
+/* 🆕 ESTILOS PARA PASO DE PERMISOS */
+.permissions-step {
+    animation: permissionsStepIn 0.5s ease-out;
+}
+
+.permissions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.permission-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #007AFF, #0051D0);
+    color: white;
+    border: none;
+    padding: 14px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.permission-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0051D0, #003D9E);
+    transform: translateY(-1px);
+}
+
+.permission-btn:disabled {
+    background: rgba(100, 100, 100, 0.8);
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Estados específicos */
+.permission-btn.active {
+    background: linear-gradient(135deg, #30D158, #28B946) !important;
+}
+
+.permission-btn.loading {
+    background: linear-gradient(135deg, #FF9500, #FF6B00) !important;
+    cursor: wait;
+}
+
+/* Separador visual antes del botón de jugar */
+.permissions-list .submit-btn {
+    margin-top: 10px;
+    border-top: 1px solid #f0f0f0;
+    padding-top: 25px;
+}
+
+@keyframes permissionsStepIn {
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive para móviles */
+@media (max-width: 480px) {
+    .permissions-list {
+        gap: 12px;
+    }
+    
+    .permission-btn {
+        padding: 12px 16px;
+        font-size: 15px;
+    }
+}
+
+/* 🆕 ESTILOS PARA INSTRUCCIONES INTEGRADAS */
+.install-steps {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 20px;
+    margin: 20px 0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.install-steps h3 {
+    margin: 0 0 15px 0;
+    color: #00ff88;
+    font-size: 1.1rem;
+    text-align: center;
+}
+
+.steps-list {
+    text-align: left;
+    margin: 0;
+    padding-left: 20px;
+    color: white;
+    line-height: 1.6;
+}
+
+.steps-list li {
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+.install-cta {
+    background: linear-gradient(45deg, #007AFF, #00D4FF);
+    border-radius: 15px;
+    padding: 20px;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.cta-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.install-cta p {
+    margin: 5px 0;
+    color: white;
+}
+
+.cta-subtitle {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .install-steps {
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .steps-list {
+        padding-left: 15px;
+    }
+    
+    .steps-list li {
+        font-size: 0.9rem;
+    }
+    
+    .install-cta {
+        padding: 15px;
+    }
+}
